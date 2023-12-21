@@ -19,10 +19,10 @@ Description
 		func	:	"ClassicProcess"
 		qml		:	"ClassicProcess.qml"
 	}
-	// Analysis
-	// {
-	// 	title	:	qsTr("Baysian Process Model")
-	// 	func	:	"BayesProcess"
-	// 	qml		:	"BayesProcess.qml"
-	// }
+	Analysis
+	{
+		title	:	qsTr("Baysian Process Model")
+		func	:	"BayesianProcess"
+		qml		:	"BayesianProcess.qml"
+	}
 }
