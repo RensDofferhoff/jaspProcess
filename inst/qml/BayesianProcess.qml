@@ -200,55 +200,75 @@ Form
 
 	Section
 	{
-		title:		qsTr("MCMC diagnostics")
+		title: qsTr("Plots")
+		columns: 1
 
-		VariablesForm
+		CheckBox
 		{
-			preferredHeight: 200 * preferencesModel.uiScale
+			name: 		"useColorPalette"
+			label: 		qsTr("Color palette")
+			checked: 	true
+			childrenOnSameRow: true
 
-			AvailableVariablesList
+			ColorPalette
 			{
-				name:	"mcmcDiagnosticsAvailableTerms"
-				title:	qsTr("Model terms")
-				source:	[ "covariates", "factors" ]
-			}
-
-			AssignedVariablesList
-			{
-				singleVariable:	true
-				name:			"mcmcDiagnosticsHorizontal"
-				title:			mcmcDiagnosticsType.currentValue == "scatterplot" ? qsTr("Horizontal axis") : qsTr("Plotted term")
-			}
-
-			AssignedVariablesList
-			{
-				singleVariable:	true
-				name:			"mcmcDiagnosticsVertical"
-				title:			qsTr("Vertical axis")
-				visible:		active
-				
-				property bool active:	mcmcDiagnosticsType.currentValue == "scatterplot"
-				onActiveChanged:		if (!active && count > 0) itemDoubleClicked(0)
+				name: "colorPalette"
+				label: ""
 			}
 		}
 
-		DropDown
+		Group
 		{
-			name:	"mcmcDiagnosticsType"
-			id:		mcmcDiagnosticsType
-			label:	qsTr("Plot type")
-			values:
-			[
-				{ label: qsTr("Traceplot"),			value: "traceplot"},
-				{ label: qsTr("Scatterplot"),		value: "scatterplot"},
-				{ label: qsTr("Histogram"),			value: "histogram"},
-				{ label: qsTr("Density"),			value: "density"},
-				{ label: qsTr("Autocorrelations"),	value: "autocorrelation"}
-			]
+			title: qsTr("MCMC Plots")
+			columns: 2
+			Group
+			{
+				CheckBox { name: "aggregatedChains";	label: qsTr("Aggregate chains for densities and histograms");	checked:true	}
+				CheckBox { name: "legend";				label: qsTr("Show legends");									checked:true	}
+				CheckBox { name: "densityPlot";			label: qsTr("Density")															}
+				CheckBox { name: "histogramPlot";		label: qsTr("Histogram")														}
+				CheckBox { name: "tracePlot";			label: qsTr("Trace");															}
+			}
+			Group
+			{
+				CheckBox { label: qsTr("Autocorrelation");	name: "autoCorPlot"; id: autoCorrelation
+					IntegerField
+					{
+						name: "autoCorPlotLags"
+						label: qsTr("No. lags")
+						defaultValue: 20
+						min: 1
+						max: 100
+					}
+					RadioButtonGroup
+					{
+						name: "autoCorPlotType"
+						title: qsTr("Type")
+						RadioButton { value: "lines";	label: qsTr("line"); checked:true	}
+						RadioButton { value: "bars";	label: qsTr("bar")					}
+					}
+				}
+				CheckBox { label: qsTr("Bivariate scatter");  name: "bivariateScatterPlot"; id: bivariateScatter
+					RadioButtonGroup
+					{
+						name: "bivariateScatterDiagonalType"
+						title: qsTr("Diagonal plot type")
+						RadioButton { value: "density";		label: qsTr("Density"); checked:true	}
+						RadioButton { value: "histogram";	label: qsTr("Histogram")				}
+					}
+					RadioButtonGroup
+					{
+						name: "bivariateScatterOffDiagonalType"
+						title: qsTr("Off-diagonal plot type")
+						RadioButton { value: "hexagon";		label: qsTr("Hexagonal"); checked:true	}
+						RadioButton { value: "contour";		label: qsTr("Contour")					}
+					}
+				}
+			}
 		}
+
+		Common.PathPlots {}
 	}
-
-	Common.PlotOptions {}
 
 	Section 
     {

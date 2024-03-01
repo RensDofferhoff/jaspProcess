@@ -1939,8 +1939,8 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
       "pathPlotsLegendLabels",
       "pathPlotsLegendColor",
       "pathPlotsLabelLength",
-      "pathPlotsColor",
-      "pathPlotsColorPalette"
+      "useColorPalette",
+      "colorPalette"
     ),
     nestedOptions = list(c("processModels", as.character(modelIdx), "statisticalPathPlot"))
   )
@@ -2195,9 +2195,9 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   ))
 
   # Create function from color palette
-  colorFun <- jaspGraphs::JASPcolors(options[["pathPlotsColorPalette"]], asFunction = TRUE)
+  colorFun <- jaspGraphs::JASPcolors(options[["colorPalette"]], asFunction = TRUE)
 
-  if (options[["pathPlotsColor"]]) {
+  if (options[["useColorPalette"]]) {
     if (type == "conceptual" && any(igraph::V(graph)$isInt)) {
       # Make helper nodes transparent
       colorPalette <- c(colorFun(length(unique(nodeType))-1), "transparent")

@@ -62,6 +62,9 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
   parEstContainer <- .procContainerParameterEstimates(jaspResults, options, modelsContainer)
   # Create tables for parameter estimates
   .procBayesParameterEstimateTables(parEstContainer, options, modelsContainer)
+
+  .procBayesMcmcPlots(jaspResults, options, modelsContainer)
+
   # Create html output with lavaan syntax for each model
   .procPlotSyntax(jaspResults, options, modelsContainer)
 
@@ -102,6 +105,7 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
     dataset <- NULL
   }
 
+  # Necessary for JASP to find function blavaan
   blavaan <- blavaan::blavaan
 
   fittedModel <- try(blavaan::bsem(
@@ -110,7 +114,8 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
     n.chains        = options$mcmcChains,
     burnin          = options$mcmcBurnin,
     sample          = options$mcmcSamples,
-    do.fit          = doFit
+    do.fit          = doFit,
+    target          = "stan"
   ))
 
   if (jaspBase::isTryError(fittedModel)) {
@@ -159,17 +164,22 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
 }
 
 .procBayesCoefficientsTable <- function(tbl, options, coefs) {
-  tbl$addColumnInfo(name = "est",      title = gettext("Estimate"),   type = "number", format = "sf:4;dp:3")
-  tbl$addColumnInfo(name = "sd",       title = gettext("SD"), type = "number", format = "sf:4;dp:3")
+  titlePosterior <- gettext("Posterior")
+  titleCI <- gettextf("%s%% Credible Interval", options$ciLevel * 100)
+
+  tbl$addColumnInfo(name = "mean",     title = gettext("Estimate"),   type = "number", format = "sf:4;dp:3", overtitle = titlePosterior)
+  tbl$addColumnInfo(name = "median",   title = gettext("Median"),     type = "number", format = "sf:4;dp:3", overtitle = titlePosterior)
+  tbl$addColumnInfo(name = "sd",       title = gettext("SD"), type = "number", format = "sf:4;dp:3", overtitle = titlePosterior)
   tbl$addColumnInfo(name = "ci.lower", title = gettext("Lower"),      type = "number", format = "sf:4;dp:3",
-                    overtitle = gettextf("%s%% Credible Interval", options$ciLevel * 100))
+                    overtitle = titleCI)
   tbl$addColumnInfo(name = "ci.upper", title = gettext("Upper"),      type = "number", format = "sf:4;dp:3",
-                    overtitle = gettextf("%s%% Credible Interval", options$ciLevel * 100))
+                    overtitle = titleCI)
   tbl$addColumnInfo(name = "rhat", title = gettext("R-hat"), type = "number")
   tbl$addColumnInfo(name = "bulkEss", title = gettext("ESS (bulk)"), type = "integer")
   tbl$addColumnInfo(name = "tailEss", title = gettext("ESS (tail)"), type = "integer")
 
-  tbl[["est"]]      <- coefs$mean
+  tbl[["mean"]]      <- coefs$mean
+  tbl[["median"]]   <- coefs$median
   tbl[["sd"]]       <- coefs$sd
   tbl[["ci.lower"]] <- coefs$ci.lower
   tbl[["ci.upper"]] <- coefs$ci.upper
@@ -199,13 +209,13 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
   parStats <- as.data.frame(
     rstan::monitor(
       as.array(stanFit)[, , na.omit(includePars), drop = FALSE],
-      probs = ci,
+      probs = c(0.5, ci), # also compute median
       # This should be zero because as.array does not include warmup samples
       warmup = 0
     )
-  )[, c("mean", "sd", ciNames, "Rhat", "Bulk_ESS", "Tail_ESS")]
+  )[, c("mean", "50%", "sd", ciNames, "Rhat", "Bulk_ESS", "Tail_ESS")]
   
-  names(parStats) <- c("mean", "sd", "ci.lower", "ci.upper", "Rhat", "Bulk_ESS", "Tail_ESS")
+  names(parStats) <- c("mean", "median", "sd", "ci.lower", "ci.upper", "Rhat", "Bulk_ESS", "Tail_ESS")
 
   return(parStats)
 }
@@ -333,4 +343,67 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
   }
 
   .procBayesCoefficientsTable(medEffectsTable, options, parStats)
+}
+
+.procBayesMcmcPlots <- function(container, options, modelsContainer) {
+
+  if (is.null(container[["mcmcPlotContainer"]])) {
+    plotContainer <- createJaspContainer(
+      title = gettext("MCMC Plots"),
+      dependencies = c("monitoredParametersShown", "useColorPalette", "colorPalette")
+    )
+    container[["mcmcPlotContainer"]] <- plotContainer
+  } else {
+    plotContainer <- container[["mcmcPlotContainer"]]
+  }
+
+  procResults <- lapply(options[["processModels"]], function(mod) modelsContainer[[mod[["name"]]]][["fittedModel"]]$object)
+  modelNames <- sapply(options[["processModels"]], function(mod) mod[["name"]])
+
+  for (i in 1:length(procResults)) {
+    if (is.null(plotContainer[[modelNames[i]]])) {
+      modelContainer <- createJaspContainer(title = modelNames[i], , initCollapsed = TRUE)
+      modelContainer$dependOn(
+        nestedOptions = .procGetSingleModelsDependencies(as.character(i))
+      )
+      plotContainer[[modelNames[i]]] <- modelContainer
+    } else {
+      modelContainer <- plotContainer[[modelNames[i]]]
+    }
+    
+    if (!.procIsValidModel(modelContainer, procResults[[i]])) next
+
+    parTbl <- lavaan::parTable(procResults[[i]])
+    # Only plot free parameters but not fixed
+    parTbl <- parTbl[parTbl$free > 0, ]
+    # Names of parameters in MCMC output
+    mcmcParams <- parTbl[, "pxnames"]
+    # Names of parameters to display
+    dispParams <- paste(parTbl$rhs, ifelse(parTbl$op == "~", "\u2192", "\u2194"), parTbl$lhs)
+    # Get MCMC samples
+    mcmcArray <- as.array(procResults[[i]]@external$mcmcout)
+    # Replace parameter names
+    dimnames(mcmcArray)[[3]][dimnames(mcmcArray)[[3]] %in% mcmcParams] <- dispParams
+
+    # mcmcArray <- abind::abind(mcmcArray, .procBayesAddMedSamples(procResults[[i]]@external$mcmcout, parTbl), along = 3)
+    
+    # Create dummy mcmcResult for JAGS functions
+    mcmcResult <- list(
+      samples = lapply(seq(dim(mcmcArray)[2]), function(i) mcmcArray[, i, ])
+    )
+
+    # Plotting functions from jaspJags module
+    containerObj <- jaspJags:::.JAGSInitPlotsContainers(modelContainer, options, dispParams)
+
+    if (options[["useColorPalette"]]) {
+      colorpalette <- options[["colorPalette"]]
+      oldColorpalette <- jaspGraphs::getGraphOption("palette")
+      on.exit(jaspGraphs::setGraphOption("palette", oldColorpalette))
+      jaspGraphs::setGraphOption("palette", colorpalette)
+    }
+
+    jaspJags:::.JAGSFillPlotContainers(containerObj, options, mcmcResult, dispParams)
+
+    jaspJags:::.JAGSPlotBivariateScatter(modelContainer, options, mcmcResult, dispParams)
+  }
 }
