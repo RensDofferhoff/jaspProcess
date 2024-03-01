@@ -57,6 +57,8 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   .procPathPlots(pathPlotContainer, options, modelsContainer)
   # Create table with model fit indices (AIC, ...)
   .procModelSummaryTable(jaspResults, options, modelsContainer)
+  # Create R² table if requested
+  .procRsquared(jaspResults, options, modelsContainer)
   # Create container for parameter estimates for each model
   parEstContainer <- .procContainerParameterEstimates(jaspResults, options, modelsContainer)
   # Create tables for parameter estimates
@@ -73,7 +75,10 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
 
 # Helper function for generic dependencies of all models
 .procGetDependencies <- function() {
-  return(c('dependent', 'covariates', 'factors', "naAction", "emulation", "estimator", "standardizedEstimates"))
+  return(c(
+    "dependent", "covariates", "factors", "naAction", "emulation", "estimator",
+    "standardizedEstimates", "errorCalculationMethod", "bootstrapCiType"
+  ))
 }
 
 # Init functions ----
@@ -122,8 +127,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
       container <- createJaspContainer(title = modelName)
       container$dependOn(
         options = .procGetDependencies(),
-        optionContainsValue = list(processModels = modelOptions),
-        nestedOptions = .procGetSingleModelsDependencies(as.character(i))
+        nestedOptions = .procGetSingleModelsDependencies(as.character(i))[-1] # omit model name
       )
       modelsContainer[[modelName]] <- container
     }
@@ -162,7 +166,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   graph <- .procProcessRelationshipsToGraph(processRelationships)
 
   if (modelOptions[["inputType"]] == "inputModelNumber")
-    graph <- .procModelGraphInputModelNumber(graph, modelOptions, decodeColNames(globalDependent))
+    graph <- .procModelGraphInputModelNumber(graph, modelOptions, globalDependent)
   
   return(graph)
 }
@@ -171,10 +175,10 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   graph <- igraph::make_empty_graph()
   
   for (path in processRelationships) {
-    dependent <- path[["processDependent"]]
-    independent <- path[["processIndependent"]]
-    type <- path[["processType"]]
-    processVariable <- path[["processVariable"]]
+    dependent <- encodeColNames(path[["processDependent"]])
+    independent <- encodeColNames(path[["processIndependent"]])
+    type <- encodeColNames(path[["processType"]])
+    processVariable <- encodeColNames(path[["processVariable"]])
 
     # Add vertices for independent and dependent var
     verticesToAdd <- c(independent, dependent)
@@ -408,7 +412,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   # Replace encoded Y with user variable
   vars <- gsub(encoding[["Y"]], globalDependent, vars)
 
-  return(vars)
+  return(encodeColNames(vars))
 }
 
 .procModelGraphInputModelNumber <- function(graph, modelOptions, globalDependent) {
@@ -473,7 +477,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
     # Create new variable for three-way interactions (moderated moderation)
     for (v in igraph::V(graph)[intLength == 3]$intVars) {
       # Compute factor dummy variables involved in interaction
-      varFormula <- formula(paste("~", paste(encodeColNames(v), collapse = "+")))
+      varFormula <- formula(paste("~", paste(v, collapse = "+")))
       # Create model matrix but keep missing values in place because it needs to be merged with dataset later
       varDummyMat <- model.matrix(varFormula, data = model.frame(dataset, na.action = NULL))
       # Create variable name like var1__var2__var3
@@ -489,7 +493,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
     }
 
     # Convert regression variables to formula
-    sourceFormula <- formula(paste("~", paste(encodeColNames(sourceVars), collapse = "+")))
+    sourceFormula <- formula(paste("~", paste(sourceVars, collapse = "+")))
 
     # Create dummy variables for factors, again keep missing values in place
     sourceDummyMat <- model.matrix(sourceFormula, data = model.frame(dataset, na.action = NULL))
@@ -510,7 +514,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
     facGraph <- igraph::make_empty_graph()
 
     # Decode names to match with graph node names (FIXME)
-    names(contrastList) <- decodeColNames(names(contrastList))
+    names(contrastList) <- names(contrastList)
     
     # Split terms of predictor vars
     sourcVarsSplit <- strsplit(unique(igraph::E(graph)$source), ":|__")
@@ -668,13 +672,13 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
 
   contrasts <- container[["contrasts"]]$object
 
-  modProbes <- lapply(encodeColNames(modVars), function(nms) {
+  modProbes <- lapply(modVars, function(nms) {
     # Is moderator factor
     matchFac <- sapply(options[["factors"]], grepl, x = nms)
 
     if (length(matchFac) > 0 && any(matchFac)) { # If is factor
       whichFac <- options[["factors"]][matchFac]
-      conMat <- contrasts[[decodeColNames(whichFac)]]
+      conMat <- contrasts[[whichFac]]
       colIdx <- which(paste0(whichFac, colnames(conMat)) == nms)
       row.names(conMat) <- as.character(conMat[, colIdx])
       # Return matrix with dummy coding for each factor
@@ -810,7 +814,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   headerMedEffects <- "
   # Mediation, indirect, and total effects"
 
-  return(encodeColNames(paste(
+  return(paste(
     headerJasp,
     regSyntax,
     headerResCov,
@@ -818,7 +822,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
     headerMedEffects,
     medEffectSyntax,
     sep = "\n")
-  ))
+  )
 }
 
 .procRegSyntax <- function(graph) {
@@ -999,6 +1003,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   # Left hand side of lavaan syntax
   lhs <- .procMedEffectsSyntaxGetLhs(path, graph, modProbes, contrasts)
 
+  # Encode column names because they will be split at '.'
   return(list(lhs = lhs, rhs = rhs))
 }
 
@@ -1022,43 +1027,73 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
 }
 
 .procMedEffectsSyntax <- function(graph, modProbes, contrasts) {
-  # Get all simple paths from X to Y
-  medPaths <- igraph::all_simple_paths(graph,
-    from = igraph::V(graph)[isTreat]$name,
-    to = igraph::V(graph)[isDep]$name,
-    mode = "out"
-  )
-  # Get lhs and rhs plus moderator names for each path
-  medEffects <- lapply(medPaths, .procMedEffectsSyntaxSinglePath, graph = graph, modProbes = modProbes, contrasts = contrasts)
-  # Sort effects according to path length to preserve order
-  medEffects <- medEffects[sort.int(sapply(medPaths, length), index.return = TRUE)$ix]
-  # All rhs effects
-  totRhs <- lapply(medEffects, function(path) path$rhs)
-  # Add rhs effects
-  totEffects <- .doCallPaste(totRhs, sep = " + ")
-  # Concatenate rhs and lhs effects
-  medEffectsLabeled <- unlist(lapply(medEffects, function(path) paste(path$lhs, path$rhs, sep = " := ")))
-  # Get conditional effect labels from lhs of each path
-  totEffectsConditional <- lapply(medEffects, function(path) {
-    # Split lhs and remove first chunk, then paste together again
-    return(sapply(strsplit(path$lhs, "\\."), function(path) paste(path[-1], collapse = ".")))
-  })
-  # Concatenate total effects
-  totEffectsLabeled <- paste(
-    paste0("tot.", .procRemoveDuplicateLabels(totEffectsConditional)), totEffects, sep = " := "
-  )
-  # Only return total effects when no indirect path
-  if (length(medEffects) < 2) {
-    return(paste(c(medEffectsLabeled, totEffectsLabeled), collapse = "\n"))
-  }
-  # Add rhs indirect effects
-  totIndEffects <- .doCallPaste(totRhs[-1], sep = " + ")
-  # Concatenate indirect effects
-  totIndEffectsLabeled <- paste(
-    paste0("totInd.", .procRemoveDuplicateLabels(totEffectsConditional[-1])), totIndEffects, sep = " := "
-  )
+  allMedEffects <- list()
+  allTotEffects <- list()
+  allTotIndEffects <- list()
 
-  return(paste(c(medEffectsLabeled, totEffectsLabeled, totIndEffectsLabeled), collapse = "\n"))
+  # Iterate over all combinations of treatment and dependent variables
+  for (trt in igraph::V(graph)[isTreat]$name) {
+    for (dep in igraph::V(graph)[isDep]$name) {
+      # Get all simple paths from X to Y
+      medPaths <- igraph::all_simple_paths(graph,
+        from = trt,
+        to = dep,
+        mode = "out"
+      )
+      # Get lhs and rhs plus moderator names for each path
+      medEffects <- lapply(medPaths, .procMedEffectsSyntaxSinglePath, graph = graph, modProbes = modProbes, contrasts = contrasts)
+      medPathLengthsSorted <- sort.int(sapply(medPaths, length), index.return = TRUE)
+      # Sort effects according to path length to preserve order
+      medEffects <- medEffects[medPathLengthsSorted$ix]
+      # All rhs effects
+      totRhs <- lapply(medEffects, function(path) path$rhs)
+      # Add rhs effects
+      totEffects <- .doCallPaste(totRhs, sep = " + ")
+      # Concatenate rhs and lhs effects
+      medEffectsLabeled <- unlist(lapply(medEffects, function(path) paste(path$lhs, path$rhs, sep = " := ")))
+      # Get conditional effect labels from lhs of each path
+      totEffectsConditional <- lapply(medEffects, function(path) {
+        # Split lhs and remove first middle part of chunk, then paste together again
+        return(sapply(strsplit(path$lhs, "\\."), function(path) {
+          # Split first chunk
+          pathSplit <- strsplit(path[1], "__")[[1]]
+          # Only use first and last node of path for total effects
+          paste(c(paste(pathSplit[c(1, length(pathSplit))], collapse = "__"), path[-1]), collapse = ".")
+        }))
+      })
+      # Concatenate total effects
+      totEffectsLabeled <- paste(
+        paste0("tot.", .procRemoveDuplicateLabels(totEffectsConditional)), totEffects, sep = " := "
+      )
+
+      allMedEffects <- c(allMedEffects, medEffectsLabeled)
+      allTotEffects <- c(allTotEffects, totEffectsLabeled)
+
+      # Indirect paths have more than two nodes
+      isIndirect <- medPathLengthsSorted$x > 2
+
+      if (any(isIndirect)) {
+        # Add rhs indirect effects
+        totIndEffects <- .doCallPaste(totRhs[isIndirect], sep = " + ")
+        # Concatenate indirect effects
+        totIndEffectsLabeled <- paste(
+          paste0("totInd.", .procRemoveDuplicateLabels(totEffectsConditional[isIndirect])), totIndEffects, sep = " := "
+        )
+
+        allTotIndEffects <- c(allTotIndEffects, totIndEffectsLabeled)
+      }
+    }
+  }
+
+  allEffects <- c(allMedEffects, allTotEffects)
+
+  # Only return total effects when no indirect path
+  if (length(allTotIndEffects) > 0) {
+    allEffects <- c(allEffects, allTotIndEffects)
+  }
+
+  # Remove duplicated effects (can occur for factors with more than two levels)
+  return(paste(allEffects[!duplicated(allMedEffects)], collapse = "\n"))
 }
 
 .procResCovSyntax <- function(graph) {
@@ -1095,8 +1130,8 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   igraph::E(graph)$parEst <- NA
   
   for (i in 1:nrow(est)) {
-    if (all(decodeColNames(c(est$rhs[i], est$lhs[i])) %in% igraph::V(graph)$name)) {
-      igraph::E(graph)[decodeColNames(est$rhs[i]) %--% decodeColNames(est$lhs[i])]$parEst <- est$est[i]
+    if (all(c(est$rhs[i], est$lhs[i])) %in% igraph::V(graph)$name) {
+      igraph::E(graph)[est$rhs[i] %--% est$lhs[i]]$parEst <- est$est[i]
     }
   }
 
@@ -1133,7 +1168,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   return(fittedModel)
 }
 
-.procResultsFitModel <- function(container, dataset, options) {
+.procResultsFitModel <- function(container, dataset, options, modelOptions) {
   # Should model be fitted?
   doFit <- .procCheckFitModel(container[["graph"]]$object)
 
@@ -1148,6 +1183,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
     mimic           = options$emulation,
     estimator       = options$estimator,
     missing         = options$naAction,
+    meanstructure   = modelOptions$intercepts,
     do.fit          = doFit
   ))
 
@@ -1155,11 +1191,10 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
     return(gettextf("Estimation failed: %s", gsub("lavaan ERROR:", "", jaspBase::.extractErrorMessage(fittedModel))))
   }
 
-  if (options$errorCalculationMethod == "bootstrap") {
-    fittedModel <- .procBootstrap(fittedModel, options$bootstrapSamples)
-  }
-
   if (doFit) {
+    if (options$errorCalculationMethod == "bootstrap") {
+      fittedModel <- .procBootstrap(fittedModel, options$bootstrapSamples)
+    }
     container[["graph"]]$object <- .procGraphAddEstimates(container[["graph"]]$object, fittedModel)
     container[["resCovGraph"]]$object <- .procGraphAddEstimates(container[["resCovGraph"]]$object, fittedModel, type = "variances")
   }
@@ -1169,6 +1204,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
 
 .procGetSingleModelsDependencies <- function(modelIdx) {
   return(list(
+    c("processModels", modelIdx, "name"),
     c("processModels", modelIdx, "inputType"),
     c("processModels", modelIdx, "processRelationships"),
     c("processModels", modelIdx, "modelNumber"),
@@ -1196,7 +1232,8 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
         fittedModel <- .procResultsFitModel(
           modelsContainer[[modelName]],
           dataset,
-          options
+          options,
+          modelOptions
         )
       }
       state <- createJaspState(object = fittedModel)
@@ -1360,7 +1397,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
 
   if (any(validModel) && is.null(parEstContainer[["warning"]])) {
     warningHtml <- createJaspHtml(text = gettext(
-      "<b>Important</b>: Parameter estimates are causal effects and need to be treated and interpreted as such. Causal effects are only meaningful if all confounding effects are accounted for and their directions are correctly specified."
+      "<b>Important</b>: Parameter estimates can only be interpreted as causal effects if all confounding effects are accounted for and if the causal effect directions are correctly specified."
     ))
     warningHtml$position <- 1
     warningHtml$dependOn("processModels")
@@ -1407,6 +1444,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
     if (is.null(container[[modelNames[i]]])) {
       modelContainer <- createJaspContainer(title = modelNames[i], , initCollapsed = TRUE)
       modelContainer$dependOn(
+        options = c("parameterLabels", "ciLevel"),
         nestedOptions = .procGetSingleModelsDependencies(as.character(i))
       )
       container[[modelNames[i]]] <- modelContainer
@@ -1488,8 +1526,8 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
 
   pathCoefTable <- createJaspTable(title = gettext("Path coefficients"))
   pathCoefTable$dependOn(
-    options = "parameterLabels",
-    nestedOptions = list(c("processModels", as.character(modelIdx), "pathCoefficients"))
+    nestedOptions = list(c("processModels", as.character(modelIdx), "pathCoefficients"),
+                         c("processModels", as.character(modelIdx), "intercepts"))
   )
   container[["pathCoefficientsTable"]] <- pathCoefTable
 
@@ -1505,8 +1543,12 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   }
 
   .procBootstrapSamplesFootnote(pathCoefTable, procResults, options)
-
-  pathCoefs <- pathCoefs[pathCoefs$op == "~",]
+  
+  # select paths from parameter estimates
+  operators <- if(options[["processModels"]][[modelIdx]][["intercepts"]]) c("~1", "~") else "~"
+  pathCoefs <- pathCoefs[pathCoefs$op %in% operators & !is.na(pathCoefs$z),]
+  pathCoefs[which(pathCoefs$op == "~1"), "rhs"] <- "(Intercept)"
+  pathCoefs <- pathCoefs[order(pathCoefs$op, decreasing = TRUE),]
 
   pathCoefTable$addColumnInfo(name = "lhs", title = "", type = "string")
   pathCoefTable$addColumnInfo(name = "op",  title = "", type = "string")
@@ -1528,6 +1570,12 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   modProbes <- list()
 
   for (path in paths) {
+    # If path is not conditional, add empty string to all mods
+    if (length(path) == 1) {
+      for (mod in mods) {
+        modProbes[[mod]] <- c(modProbes[[mod]], "")
+      }
+    }
     pathMods <- sapply(path[-1], function(row) row[1])
 
     for (condEff in path[-1]) {
@@ -1547,7 +1595,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
 
   medEffectsTable <- createJaspTable(title = gettext("Mediation effects"))
   medEffectsTable$dependOn(
-    options = c("parameterLabels", "moderationProbes"),
+    options = "moderationProbes",
     nestedOptions = list(c("processModels", as.character(modelIdx), "mediationEffects"))
   )
 
@@ -1600,17 +1648,13 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
     medEffectsTable[[paste0("lhs_", i)]] <- medEffect
   }
 
-  medEffectIsConditional <- sapply(labelSplit, function(path) length(path) > 1)
+  uniqueMods <- unique(unlist(lapply(labelSplit, function(path) lapply(path[-1], function(row) row[1]))))
 
-  uniqueMods <- unique(unlist(lapply(labelSplit[medEffectIsConditional], function(path) lapply(path[-1], function(row) row[1]))))
-
-  modProbes <- .procEffectsTablesGetConditionalLabels(labelSplit[medEffectIsConditional], uniqueMods)
+  modProbes <- .procEffectsTablesGetConditionalLabels(labelSplit[medLengthSortIdx], uniqueMods)
 
   for (mod in uniqueMods) {
-    medEffectsTable$addColumnInfo(name = mod, title = mod, type = "string", combine = FALSE) # combine = F because empty cells indicate no moderation
-    modLabels <- vector("character", length(medEffectIsConditional))
-    modLabels[medEffectIsConditional] <- modProbes[[mod]]
-    medEffectsTable[[mod]] <- modLabels
+    medEffectsTable$addColumnInfo(name = mod, title = mod, type = "string", combine = FALSE)
+    medEffectsTable[[mod]] <- modProbes[[mod]]
   }
 
   # Add column with parameter labels
@@ -1626,7 +1670,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
 
   totEffectsTable <- createJaspTable(title = gettext("Total effects"))
   totEffectsTable$dependOn(
-    options = c("parameterLabels", "moderationProbes"),
+    options = "moderationProbes",
     nestedOptions = list(c("processModels", as.character(modelIdx), "totalEffects"))
   )
 
@@ -1657,12 +1701,19 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   totEffectLabels <- sapply(labelSplit, function(path) path[[1]])
   totEffects <- medEffects[isTotEffect, ]
 
-  totEffectsTable$addColumnInfo(name = "lhs", title = "", type = "string", combine = TRUE)
-  totEffectsTable[["lhs"]] <- ifelse(totEffectLabels == "tot", gettext("Total"), gettext("Total indirect"))
+  totEffectsTable$addColumnInfo(name = "lbl", title = "", type = "string", combine = TRUE)
+  totEffectsTable[["lbl"]] <- ifelse(totEffectLabels == "tot", gettext("Total"), gettext("Total indirect"))
 
-  uniqueMods <- unique(unlist(lapply(labelSplit, function(path) lapply(path[-1], function(row) row[1]))))
+  totEffectsTable$addColumnInfo(name = "lhs_1", title = "", type = "string")
+  totEffectsTable[["lhs_1"]] <- lapply(labelSplit, function(path) path[[2]][1])
+  totEffectsTable$addColumnInfo(name = "op", title = "", type = "string")
+  totEffectsTable[["op"]] <- rep_len("\u2192", length(totEffectLabels))
+  totEffectsTable$addColumnInfo(name = "lhs_2", title = "", type = "string")
+  totEffectsTable[["lhs_2"]] <- lapply(labelSplit, function(path) path[[2]][2])
 
-  modProbes <- .procEffectsTablesGetConditionalLabels(labelSplit, uniqueMods)
+  uniqueMods <- unique(unlist(lapply(labelSplit, function(path) lapply(path[-c(1:2)], function(row) row[1]))))
+
+  modProbes <- .procEffectsTablesGetConditionalLabels(lapply(labelSplit, function(path) path[-2]), uniqueMods)
 
   for (mod in uniqueMods) {
     totEffectsTable$addColumnInfo(name = mod, title = mod, type = "string", combine = FALSE)
@@ -1776,7 +1827,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   if (!.procIsValidModel(container, procResults)) return()
 
   # Only test variables in dataset that are part of model
-  dataset <- dataset[encodeColNames(procResults@Data@ov$name)]
+  dataset <- dataset[procResults@Data@ov$name]
 
   if (!procResults@Fit@converged) {
     localTestTable$addFootnote(gettext("Model did not converge."))
@@ -1883,6 +1934,48 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   }
 }
 
+
+.procRsquared <- function(jaspResults, options, modelsContainer) {
+  # adapted from .semRsquared() from jaspSem/R/sem.R (one table for several models)
+  if (!options[["rSquared"]] || !is.null(jaspResults[["rSquaredTable"]])) return()
+  
+  # retrieve model objects
+  procResults <- lapply(options[["processModels"]], function(mod) modelsContainer[[mod[["name"]]]][["fittedModel"]]$object)
+  modelNames <- sapply(options[["processModels"]], function(mod) mod[["name"]])
+  resultIsValid <- sapply(procResults, function(mod) inherits(mod, "lavaan") && mod@Options[["do.fit"]])
+  procResults <- procResults[resultIsValid]
+  modelNames <- modelNames[resultIsValid]
+  # init table
+  tabr2 <- createJaspTable(gettext("R-squared"))
+  tabr2$addColumnInfo(name = "__var__", title = "", type = "string")
+  for (i in seq_along(options[["processModels"]])) {
+    tabr2$addColumnInfo(name = paste0("rsq_", i), title = modelNames[i],
+                        overtitle = "R\u00B2", type = "number")
+  }
+  
+  tabr2$dependOn(c(.procGetDependencies(), "rSquared", "processModels"))
+  tabr2$position <- 1
+  
+  jaspResults[["rSquaredTable"]] <- tabr2
+  
+  
+  # compute data and fill table
+  
+  # retrieve r²
+  r2li <- lapply(procResults, lavaan::inspect, what = "r2")
+  
+  # generate df with variable names
+  r2df <- data.frame("varname__" = unique(unlist(lapply(r2li, names))))
+  tabr2[["__var__"]] <- unique(unlist(lapply(r2li, names)))
+  
+  for (i in 1:length(r2li)) {
+    # fill matching vars from model with df
+    r2df[match(names(r2li[[i]]), r2df[["varname__"]]), i + 1] <- r2li[[i]]
+    # add column to table
+    tabr2[[paste0("rsq_", i)]] <- r2df[[i + 1]]
+  }
+}
+
 # Plotting functions ----
 
 .procPathPlots <- function(container, options, modelsContainer) {
@@ -1983,7 +2076,8 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   igraph::V(graph)[isTreat]$posY[1] <- 0
 
   igraph::V(graph)[isDep]$posX <- 1
-  igraph::V(graph)[isDep]$posY <- 0
+  igraph::V(graph)[isDep]$posY <- .procMainGraphLayoutPosHelper(1:sum(igraph::V(graph)$isDep))
+  igraph::V(graph)[isDep]$posY[1] <- 0
   
   return(graph)
 }

@@ -60,7 +60,7 @@ This section allows users to specify multiple process models through one of two 
 		- Moderator Z: Second moderator variable.
 
 - Residual Covariances: Adds covariances between the residuals of variables indicating that they have a common cause not specified in the model. Also adds variances for independent (exogenous) variables. This adds degrees of freedom corresponding to the number of covariances and variances added.
-- Parameter Estimates: Determines which parameter estimates are shown in the output.
+- Parameter Estimates: Determines which parameter estimates are shown in the output. Requesting intercepts adds the mean structure to the model, which adds parameters and will therefore affect some fit indices (such as the information criteria AIC and BIC).
 - Path plots: Displays path plots in the output.
 	- Conceptual: Shows a conceptual path plot. These plots contain no parameter labels or estimates and simplify moderation effects in the model structure by omitting direct effects and interactions. Instead moderators point to the path they are moderating. These plots can be shown even when the model is not complete yet (when `Input type` is `Model number`) and are easier to understand than the statistical path plots.
 	- Statistical: Shows a statistical path plot including parameter labels or estimates for all paths.
@@ -80,6 +80,7 @@ This section allows users to specify multiple process models through one of two 
 
 - Parameter labels: Display the labels of parameter in the output tables. For indirect and direct (total) effects, display the equations for the effects.
 - Lavaan syntax: Show the lavaan syntax used to fit the model in the output.
+- R-squared: Show *R*², the proportion of variation explained in each endogenous (outcome) variable from its predictors, in the output.
 - AIC weights: Show the Akaike weights in the summary table in the output.
 - BIC weigths: Show the Schwarz weights in the summary table in the output.
 - Standardized estimates: When `Missing Value Handling` is `Exclude cases listwise`, standardization is applied only based on complete cases.

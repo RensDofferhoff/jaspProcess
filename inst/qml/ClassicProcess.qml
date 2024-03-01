@@ -38,6 +38,7 @@ Form
             maximumItems:	10
             newItemName:	qsTr("Model 1")
             optionKey:		"name"
+			depends:		["dependent", "covariates", "factors"]
 
             content: Group
             {
@@ -96,6 +97,13 @@ Form
 								name: "pathCoefficients"
 								label: qsTr("Paths")
 								checked: pathCoefficientsForAllModels.checked
+								
+								CheckBox
+  							    {
+  								    name: "intercepts"
+  								    label: qsTr("Intercepts")
+  								    checked: interceptsForAllModels.checked
+  							    }
 							}
 							CheckBox
 							{
@@ -200,8 +208,7 @@ Form
 		{
 			CheckBox { label: qsTr("Parameter labels") 	;		name: "parameterLabels" }
 			CheckBox { label: qsTr("Lavaan syntax")     ;       name: "syntax" }
-			// TODO
-			// CheckBox { label: qsTr("R-squared")         ;       name: "rSquared" }
+			CheckBox { label: qsTr("R-squared")         ;       name: "rSquared" }
 			CheckBox { label: qsTr("AIC weights")         ;     name: "aicWeights" }
 			CheckBox { label: qsTr("BIC weights")         ;     name: "bicWeights" }
 		}
@@ -282,6 +289,13 @@ Form
                     name: 		"pathCoefficientsForAllModels"
                     label: 		qsTr("Paths")
                     checked: 	true
+                    
+                    CheckBox
+                    {
+                        id:			interceptsForAllModels
+                        name: 		"interceptsForAllModels"
+                        label: 		qsTr("Intercepts")
+                    }
                 }
                 CheckBox
                 {

@@ -75,7 +75,7 @@ test_that("Factors with more than two levels work", {
                                      inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
                                      modelNumberMediators = list(), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
                                      processRelationships = list(list(processDependent = "contNormal",
                                                                       processIndependent = "facThree", processType = "moderators",
                                                                       processVariable = "contcor1")), residualCovariances = TRUE,
@@ -143,17 +143,20 @@ test_that("Factors with more than two levels work", {
   table <- results[["results"]][["parEstContainer"]][["collection"]][["parEstContainer_Model 1"]][["collection"]][["parEstContainer_Model 1_totalEffectsTable"]][["data"]]
   jaspTools::expect_equal_tables(table,
                                  list(-0.830256392443183, 0.671610737357546, 16, -0.0793228275428181,
-                                      "B", "Total", 0.835982155868673, 0.383136410068569, -0.207035472114545,
-                                      -0.525905203599432, 1.15334878307229, 16, 0.313721789736431,
-                                      "C", "Total", 0.463967628372663, 0.428388990797144, 0.732329253262693,
+                                      "B", "Total", "facThree", "contNormal", "<unicode>", 0.835982155868673,
+                                      0.383136410068569, -0.207035472114545, -0.525905203599432, 1.15334878307229,
+                                      16, 0.313721789736431, "C", "Total", "facThree", "contNormal",
+                                      "<unicode>", 0.463967628372663, 0.428388990797144, 0.732329253262693,
                                       -0.419840075280424, 0.605570327476428, 50, 0.0928651260980024,
-                                      "B", "Total", 0.722586733028552, 0.261589093178538, 0.355003815218782,
-                                      -0.343080242602794, 0.839989902182687, 50, 0.248454829789947,
-                                      "C", "Total", 0.410383843371771, 0.301809154177676, 0.823218336325481,
+                                      "B", "Total", "facThree", "contNormal", "<unicode>", 0.722586733028552,
+                                      0.261589093178538, 0.355003815218782, -0.343080242602794, 0.839989902182687,
+                                      50, 0.248454829789947, "C", "Total", "facThree", "contNormal",
+                                      "<unicode>", 0.410383843371771, 0.301809154177676, 0.823218336325481,
                                       -0.539700678828145, 1.248288868581, 84, 0.354294094876428, "B",
-                                      "Total", 0.437310752972172, 0.456128163964384, 0.776742422123473,
-                                      -0.891019363658371, 1.18974240595951, 84, 0.149361521150572,
-                                      "C", "Total", 0.778418345460771, 0.530816327756701, 0.281380796596429
+                                      "Total", "facThree", "contNormal", "<unicode>", 0.437310752972172,
+                                      0.456128163964384, 0.776742422123473, -0.891019363658371, 1.18974240595951,
+                                      84, 0.149361521150572, "C", "Total", "facThree", "contNormal",
+                                      "<unicode>", 0.778418345460771, 0.530816327756701, 0.281380796596429
                                  ))
 
   plotName <- results[["results"]][["pathPlotContainer"]][["collection"]][["pathPlotContainer_Model 1"]][["collection"]][["pathPlotContainer_Model 1_conceptPathPlot"]][["data"]]
@@ -187,7 +190,7 @@ test_that("Interactions between three-level and two-level factors work", {
                                      inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
                                      modelNumberMediators = list(), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
                                      processRelationships = list(list(processDependent = "contNormal",
                                                                       processIndependent = "facThree", processType = "moderators",
                                                                       processVariable = "facTwo")), residualCovariances = TRUE,
@@ -250,15 +253,17 @@ test_that("Interactions between three-level and two-level factors work", {
 
   table <- results[["results"]][["parEstContainer"]][["collection"]][["parEstContainer_Model 1"]][["collection"]][["parEstContainer_Model 1_totalEffectsTable"]][["data"]]
   jaspTools::expect_equal_tables(table,
-                                  list(-0.791795096924544, 0.581685251275046, -0.105054922824749, "B",
-                                       0, "Total", 0.764308431708751, 0.350384078236495, -0.299827901294765,
-                                       -0.835536962519563, 0.956997866934718, 0.0607304522075771, "C",
-                                       0, "Total", 0.894346977790344, 0.457287695996857, 0.132805786683564,
-                                       -0.346979683149472, 1.19016835490491, 0.42159433587772, "B",
-                                       1, "Total", 0.282320764531175, 0.392136807150339, 1.07512054005195,
-                                       -0.273316897247542, 1.3997156098619, 0.563199356307179, "C",
-                                       1, "Total", 0.1869751495513, 0.426801849499815, 1.31958040239801
-                                  ))
+                                 list(-0.791795096924544, 0.581685251275046, -0.105054922824749, "B",
+                                      0, "Total", "facThree", "contNormal", "<unicode>", 0.764308431708751,
+                                      0.350384078236495, -0.299827901294765, -0.835536962519563, 0.956997866934718,
+                                      0.0607304522075771, "C", 0, "Total", "facThree", "contNormal",
+                                      "<unicode>", 0.894346977790344, 0.457287695996857, 0.132805786683564,
+                                      -0.346979683149472, 1.19016835490491, 0.42159433587772, "B",
+                                      1, "Total", "facThree", "contNormal", "<unicode>", 0.282320764531175,
+                                      0.392136807150339, 1.07512054005195, -0.273316897247542, 1.3997156098619,
+                                      0.563199356307179, "C", 1, "Total", "facThree", "contNormal",
+                                      "<unicode>", 0.1869751495513, 0.426801849499815, 1.31958040239801
+                                 ))
 
   plotName <- results[["results"]][["pathPlotContainer"]][["collection"]][["pathPlotContainer_Model 1"]][["collection"]][["pathPlotContainer_Model 1_conceptPathPlot"]][["data"]]
   testPlot <- results[["state"]][["figures"]][[plotName]][["obj"]]
@@ -290,7 +295,7 @@ test_that("Interactions between two-level and three-level factors work", {
                                      inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
                                      modelNumberMediators = list(), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
                                      processRelationships = list(list(processDependent = "contNormal",
                                                                       processIndependent = "facTwo", processType = "moderators",
                                                                       processVariable = "facThree")), residualCovariances = TRUE,
@@ -351,12 +356,13 @@ test_that("Interactions between two-level and three-level factors work", {
   table <- results[["results"]][["parEstContainer"]][["collection"]][["parEstContainer_Model 1"]][["collection"]][["parEstContainer_Model 1_totalEffectsTable"]][["data"]]
   jaspTools::expect_equal_tables(table,
                                  list(-1.50982658998053, 0.360680619782956, -0.574572985098788, 0, 0,
-                                      "E", "Total", 0.22854948713801, 0.477178974847959, -1.20410373336726,
-                                      -0.481073569295704, 0.385226116503068, -0.0479237263963181,
-                                      1, 0, "E", "Total", 0.828324822990655, 0.220998878712067, -0.216850540942141,
+                                      "E", "Total", "facTwo", "contNormal", "<unicode>", 0.22854948713801,
+                                      0.477178974847959, -1.20410373336726, -0.481073569295704, 0.385226116503068,
+                                      -0.0479237263963181, 1, 0, "E", "Total", "facTwo", "contNormal",
+                                      "<unicode>", 0.828324822990655, 0.220998878712067, -0.216850540942141,
                                       -0.864792807836215, 0.720584645837844, -0.0721040809991859,
-                                      0, 1, "E", "Total", 0.858502237177862, 0.404440455584724, -0.178281079460611
-                                 ))
+                                      0, 1, "E", "Total", "facTwo", "contNormal", "<unicode>", 0.858502237177862,
+                                      0.404440455584724, -0.178281079460611))
 
   plotName <- results[["results"]][["pathPlotContainer"]][["collection"]][["pathPlotContainer_Model 1"]][["collection"]][["pathPlotContainer_Model 1_conceptPathPlot"]][["data"]]
   testPlot <- results[["state"]][["figures"]][[plotName]][["obj"]]
@@ -409,7 +415,7 @@ test_that("Standardized estimates match", {
                                      inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
                                      modelNumberMediators = list(), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
                                      processRelationships = list(list(processDependent = "y",
                                                                       processIndependent = "x", processType = "mediators",
                                                                       processVariable = "m")), residualCovariances = TRUE,
@@ -455,7 +461,7 @@ test_that("Standardized estimates match - missing values/listwise", {
                                      inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
                                      modelNumberMediators = list(), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
                                      processRelationships = list(list(processDependent = "y",
                                                                       processIndependent = "x", processType = "mediators",
                                                                       processVariable = "m")), residualCovariances = TRUE,
@@ -502,7 +508,7 @@ test_that("Standardized estimates match - missing values/fiml", {
                                      inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
                                      modelNumberMediators = list(), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
                                      processRelationships = list(list(processDependent = "y",
                                                                       processIndependent = "x", processType = "mediators",
                                                                       processVariable = "m")), residualCovariances = TRUE,
@@ -546,7 +552,7 @@ test_that("Standardized estimates match - moderated moderation", {
                                      inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
                                      modelNumberMediators = list(), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
                                      processRelationships = list(list(processDependent = "y",
                                                                       processIndependent = "x", processType = "moderators",
                                                                       processVariable = "w"), list(processDependent = "y",
@@ -590,7 +596,7 @@ test_that("Bootstrapping works", {
                                      inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
                                      modelNumberMediators = list(), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
                                      processRelationships = list(list(processDependent = "contNormal",
                                                                       processIndependent = "contGamma", processType = "mediators",
                                                                       processVariable = "debCollin1"), list(processDependent = "contNormal",
@@ -652,14 +658,16 @@ test_that("Bootstrapping works", {
   table <- results[["results"]][["parEstContainer"]][["collection"]][["parEstContainer_Model 1"]][["collection"]][["parEstContainer_Model 1_totalEffectsTable"]][["data"]]
   jaspTools::expect_equal_tables(table,
                                  list(-0.185247768110493, 0.184954521048108, 16, 0.0204130854588272,
-                                      "Total", 0.828873774494712, 0.0944410948565151, 0.216146217807417,
-                                      -0.168690463730101, 0.101377032919165, 50, -0.0262717264731872,
-                                      "Total", 0.70296268972986, 0.0688960355342047, -0.38132421219134,
+                                      "Total", "contGamma", "contNormal", "<unicode>", 0.828873774494712,
+                                      0.0944410948565151, 0.216146217807417, -0.168690463730101, 0.101377032919165,
+                                      50, -0.0262717264731872, "Total", "contGamma", "contNormal",
+                                      "<unicode>", 0.70296268972986, 0.0688960355342047, -0.38132421219134,
                                       -0.273074796118108, 0.132617352791238, 84, -0.0772222652104539,
-                                      "Total", 0.455579011178567, 0.103494796871115, -0.746146352715889,
-                                      -0.0178703105626821, 0.0288190536878919, 0.00298071207899204,
-                                      "Total indirect", 0.80239131693294, 0.0119107709679499, 0.250253496353234
-                                 ))
+                                      "Total", "contGamma", "contNormal", "<unicode>", 0.455579011178567,
+                                      0.103494796871115, -0.746146352715889, -0.0178703105626821,
+                                      0.0288190536878919, "", 0.00298071207899204, "Total indirect",
+                                      "contGamma", "contNormal", "<unicode>", 0.80239131693294, 0.0119107709679499,
+                                      0.250253496353234))
 })
 
 test_that("Missing values work", {
@@ -682,7 +690,7 @@ test_that("Missing values work", {
                                      inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
                                      modelNumberMediators = list(), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
                                      processRelationships = list(list(processDependent = "contNormal",
                                                                       processIndependent = "debMiss1", processType = "mediators",
                                                                       processVariable = "debMiss80"), list(processDependent = "contNormal",
@@ -746,14 +754,16 @@ test_that("Missing values work", {
   table <- results[["results"]][["parEstContainer"]][["collection"]][["parEstContainer_Model 1"]][["collection"]][["parEstContainer_Model 1_totalEffectsTable"]][["data"]]
   jaspTools::expect_equal_tables(table,
                                  list(0.00390635118951979, 0.0336848167039331, 16, 0.0187955839467264,
-                                      "Total", 0.0133541749541057, 0.00759668691601019, 2.47418172613041,
-                                      0.00199406108792504, 0.0212392574984804, 50, 0.0116166592932027,
-                                      "Total", 0.0179755575686842, 0.0049095790949117, 2.36612122314971,
-                                      -0.00769347000856958, 0.0176074923436479, 84, 0.00495701116753915,
-                                      "Total", 0.442487475308531, 0.0064544457326227, 0.767999511171801,
-                                      -0.00561727350073337, 0.0137357253091405, 0.00405922590420357,
-                                      "Total indirect", 0.410967855868118, 0.00493708021232223, 0.822191605085194
-                                 ))
+                                      "Total", "debMiss1", "contNormal", "<unicode>", 0.0133541749541057,
+                                      0.00759668691601019, 2.47418172613041, 0.00199406108792504,
+                                      0.0212392574984804, 50, 0.0116166592932027, "Total", "debMiss1",
+                                      "contNormal", "<unicode>", 0.0179755575686842, 0.0049095790949117,
+                                      2.36612122314971, -0.00769347000856958, 0.0176074923436479,
+                                      84, 0.00495701116753915, "Total", "debMiss1", "contNormal",
+                                      "<unicode>", 0.442487475308531, 0.0064544457326227, 0.767999511171801,
+                                      -0.00561727350073337, 0.0137357253091405, "", 0.00405922590420357,
+                                      "Total indirect", "debMiss1", "contNormal", "<unicode>", 0.410967855868118,
+                                      0.00493708021232223, 0.822191605085194))
 
   plotName <- results[["results"]][["pathPlotContainer"]][["collection"]][["pathPlotContainer_Model 1"]][["collection"]][["pathPlotContainer_Model 1_conceptPathPlot"]][["data"]]
   testPlot <- results[["state"]][["figures"]][[plotName]][["obj"]]
@@ -785,7 +795,7 @@ test_that("Not implemented Hayes models error message work", {
                                      inputType = "inputModelNumber", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = modelNumber, modelNumberCovariates = list(), modelNumberIndependent = "",
                                      modelNumberMediators = list(), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
                                      residualCovariances = TRUE, processRelationships = list(),
                                      statisticalPathPlot = TRUE, totalEffects = TRUE, localTests = TRUE,
                                      localTestType = "cis", localTestBootstrap = FALSE, localTestBootstrapSamples = 1000),
@@ -793,7 +803,7 @@ test_that("Not implemented Hayes models error message work", {
                                      inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
                                      modelNumberMediators = list(), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 2", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 2", pathCoefficients = TRUE, intercepts = FALSE,
                                      processRelationships = list(list(processDependent = "contNormal",
                                                                       processIndependent = "contGamma", processType = "mediators",
                                                                       processVariable = "debCollin1"), list(processDependent = "contNormal",
@@ -869,14 +879,16 @@ test_that("Not implemented Hayes models error message work", {
   table <- results[["results"]][["parEstContainer"]][["collection"]][["parEstContainer_Model 2"]][["collection"]][["parEstContainer_Model 2_totalEffectsTable"]][["data"]]
   jaspTools::expect_equal_tables(table,
                                  list(-0.164688059120473, 0.205514230038128, 16, 0.0204130854588272,
-                                      "Total", 0.828873774494712, 0.0944410948565151, 0.216146217807417,
-                                      -0.16130547479782, 0.108762021851446, 50, -0.0262717264731872,
-                                      "Total", 0.70296268972986, 0.0688960355342047, -0.38132421219134,
+                                      "Total", "contGamma", "contNormal", "<unicode>", 0.828873774494712,
+                                      0.0944410948565151, 0.216146217807417, -0.16130547479782, 0.108762021851446,
+                                      50, -0.0262717264731872, "Total", "contGamma", "contNormal",
+                                      "<unicode>", 0.70296268972986, 0.0688960355342047, -0.38132421219134,
                                       -0.280068339665127, 0.125623809244219, 84, -0.0772222652104539,
-                                      "Total", 0.455579011178567, 0.103494796871115, -0.746146352715889,
-                                      -0.0203639700462949, 0.026325394204279, 0.00298071207899204,
-                                      "Total indirect", 0.80239131693294, 0.0119107709679499, 0.250253496353234
-                                 ))
+                                      "Total", "contGamma", "contNormal", "<unicode>", 0.455579011178567,
+                                      0.103494796871115, -0.746146352715889, -0.0203639700462949,
+                                      0.026325394204279, "", 0.00298071207899204, "Total indirect",
+                                      "contGamma", "contNormal", "<unicode>", 0.80239131693294, 0.0119107709679499,
+                                      0.250253496353234))
 
   plotName <- results[["results"]][["pathPlotContainer"]][["collection"]][["pathPlotContainer_Model 2"]][["collection"]][["pathPlotContainer_Model 2_conceptPathPlot"]][["data"]]
   testPlot <- results[["state"]][["figures"]][[plotName]][["obj"]]
@@ -907,7 +919,7 @@ test_that("No implied conditional independencies error message works", {
                                      inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
                                      modelNumberMediators = list(), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
                                      processRelationships = list(list(processDependent = "contNormal",
                                                                       processIndependent = "contGamma", processType = "mediators",
                                                                       processVariable = "debCollin1")), residualCovariances = TRUE,
@@ -948,7 +960,7 @@ test_that("Invalid test type error message works", {
                                      inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
                                      modelNumberMediators = list(), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
                                      processRelationships = list(list(processDependent = "contNormal",
                                                                       processIndependent = "contGamma", processType = "mediators",
                                                                       processVariable = "debCollin1"), list(processDependent = "contNormal",
@@ -991,7 +1003,7 @@ test_that("Local tests work for factors with loess test type", {
                                      inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
                                      modelNumberMediators = list(), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
                                      processRelationships = list(list(processDependent = "contNormal",
                                                                       processIndependent = "contGamma", processType = "mediators",
                                                                       processVariable = "debCollin1"), list(processDependent = "contNormal",
@@ -1028,7 +1040,7 @@ test_that("Path plots for empty moderator model works", {
                                      inputType = "inputModelNumber", mediationEffects = TRUE, mediatorCovariances = TRUE,
                                      modelNumber = 91, modelNumberCovariates = list(), modelNumberIndependent = "contGamma",
                                      modelNumberMediators = list("debCollin1"), modelNumberModeratorW = "",
-                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE,
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
                                      processRelationships = list(), residualCovariances = TRUE,
                                      statisticalPathPlot = TRUE, totalEffects = TRUE, localTests = TRUE,
                                      localTestType = "cis.loess", localTestBootstrap = FALSE, localTestBootstrapSamples = 1000))
@@ -1037,9 +1049,160 @@ test_that("Path plots for empty moderator model works", {
 
   plotName <- results[["results"]][["pathPlotContainer"]][["collection"]][["pathPlotContainer_Model 1"]][["collection"]][["pathPlotContainer_Model 1_conceptPathPlot"]][["data"]]
   testPlot <- results[["state"]][["figures"]][[plotName]][["obj"]]
-  jaspTools::expect_equal_plots(testPlot, "conceptual-path-plot")
+  jaspTools::expect_equal_plots(testPlot, "conceptual-path-plot-empty-mod")
 
   plotName <- results[["results"]][["pathPlotContainer"]][["collection"]][["pathPlotContainer_Model 1"]][["collection"]][["pathPlotContainer_Model 1_statPathPlot"]][["data"]]
   testPlot <- results[["state"]][["figures"]][[plotName]][["obj"]]
-  jaspTools::expect_equal_plots(testPlot, "statistical-path-plot")
+  jaspTools::expect_equal_plots(testPlot, "statistical-path-plot-empty-mod")
+})
+
+test_that("Path plot for multiple dependent variables work", {
+  options <- jaspTools::analysisOptions("ClassicProcess")
+  options$dependent <- "contNormal"
+  options$covariates <- list("contGamma", "debCollin1", "contcor1", "contNormal", "debMiss1")
+  options$factors <- list("facGender")
+  options$statisticalPathPlotsCovariances <- TRUE
+  options$statisticalPathPlotsResidualVariances <- TRUE
+  options$errorCalculationMethod <- "standard"
+  options$ciLevel <- 0.95
+  options$naAction <- "fiml"
+  options$emulation <- "lavaan"
+  options$estimator <- "default"
+  options$moderationProbes <- list(list(probePercentile = 16, value = "16"), list(probePercentile = 50,
+                                                                                  value = "50"), list(probePercentile = 84, value = "84"))
+  options$pathPlotsLegend <- TRUE
+  options$pathPlotsColorPalette <- "colorblind"
+  options$processModels <- list(list(conceptualPathPlot = TRUE, independentCovariances = TRUE,
+                                     inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
+                                     modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
+                                     modelNumberMediators = list(), modelNumberModeratorW = "",
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
+                                     processRelationships = list(list(processDependent = "contNormal",
+                                                                      processIndependent = "contGamma", processType = "mediators",
+                                                                      processVariable = "debCollin1"), list(processDependent = "contcor1",
+                                                                                                            processIndependent = "facGender", processType = "mediators",
+                                                                                                            processVariable = "debCollin1"), list(processDependent = "debMiss1",
+                                                                                                                                                  processIndependent = "contGamma", processType = "mediators",
+                                                                                                                                                  processVariable = "debCollin1")), residualCovariances = TRUE,
+                                     statisticalPathPlot = TRUE, totalEffects = TRUE, localTests = FALSE,
+                                     localTestType = "cis.loess", localTestBootstrap = FALSE, localTestBootstrapSamples = 1000))
+  set.seed(1)
+  results <- jaspTools::runAnalysis("ClassicProcess", "debug", options)
+  
+  plotName <- results[["results"]][["pathPlotContainer"]][["collection"]][["pathPlotContainer_Model 1"]][["collection"]][["pathPlotContainer_Model 1_conceptPathPlot"]][["data"]]
+  testPlot <- results[["state"]][["figures"]][[plotName]][["obj"]]
+  jaspTools::expect_equal_plots(testPlot, "conceptual-path-plot-multi-dep")
+  
+  plotName <- results[["results"]][["pathPlotContainer"]][["collection"]][["pathPlotContainer_Model 1"]][["collection"]][["pathPlotContainer_Model 1_statPathPlot"]][["data"]]
+  testPlot <- results[["state"]][["figures"]][[plotName]][["obj"]]
+  jaspTools::expect_equal_plots(testPlot, "statistical-path-plot-multi-dep")
+})
+
+test_that("R-squared table matches", {
+  options <- jaspTools::analysisOptions("ClassicProcess")
+  options$rSquared <- TRUE
+  options$dependent <- "contNormal"
+  options$covariates <- list("contGamma", "debCollin1", "contcor1", "contNormal", "debMiss1")
+  options$factors <- list("facGender")
+  options$statisticalPathPlotsCovariances <- TRUE
+  options$statisticalPathPlotsResidualVariances <- TRUE
+  options$errorCalculationMethod <- "standard"
+  options$ciLevel <- 0.95
+  options$naAction <- "listwise"
+  options$emulation <- "lavaan"
+  options$estimator <- "default"
+  options$moderationProbes <- list(list(probePercentile = 16, value = "16"), list(probePercentile = 50,
+                                                                                  value = "50"), list(probePercentile = 84, value = "84"))
+  options$pathPlotsLegend <- TRUE
+  options$pathPlotsColorPalette <- "colorblind"
+  options$processModels <- list(list(conceptualPathPlot = TRUE, independentCovariances = TRUE,
+                                     inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
+                                     modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
+                                     modelNumberMediators = list(), modelNumberModeratorW = "",
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = FALSE,
+                                     processRelationships = list(list(processDependent = "contNormal",
+                                                                      processIndependent = "contGamma", processType = "mediators",
+                                                                      processVariable = "debCollin1"), list(processDependent = "contcor1",
+                                                                                                            processIndependent = "facGender", processType = "mediators",
+                                                                                                            processVariable = "debCollin1"), list(processDependent = "debMiss1",
+                                                                                                                                                  processIndependent = "contGamma", processType = "mediators",
+                                                                                                                                                  processVariable = "debCollin1")), residualCovariances = TRUE,
+                                     statisticalPathPlot = TRUE, totalEffects = TRUE, localTests = FALSE,
+                                     localTestType = "cis.loess", localTestBootstrap = FALSE, localTestBootstrapSamples = 1000))
+  set.seed(1)
+  results <- jaspTools::runAnalysis("ClassicProcess", "debug", options)
+  
+  table <- results[["results"]][["rSquaredTable"]][["data"]]
+  jaspTools::expect_equal_tables(table,
+                                 list("contNormal", 0.00181189494871836, "debCollin1", 0.0265249455063975,
+                                      "debMiss1", 0.0250288495182258, "contcor1", 0.0112314309960128
+                                 ))
+})
+
+test_that("Path coefficients table with intercepts matches", {
+  options <- jaspTools::analysisOptions("ClassicProcess")
+  options$dependent <- "contNormal"
+  options$covariates <- list("contGamma", "debCollin1", "contcor1", "contNormal", "debMiss1")
+  options$factors <- list("facGender")
+  options$statisticalPathPlotsCovariances <- TRUE
+  options$statisticalPathPlotsResidualVariances <- TRUE
+  options$errorCalculationMethod <- "standard"
+  options$ciLevel <- 0.95
+  options$naAction <- "listwise"
+  options$emulation <- "lavaan"
+  options$estimator <- "default"
+  options$moderationProbes <- list(list(probePercentile = 16, value = "16"), list(probePercentile = 50,
+                                                                                  value = "50"), list(probePercentile = 84, value = "84"))
+  options$pathPlotsLegend <- TRUE
+  options$pathPlotsColorPalette <- "colorblind"
+  options$processModels <- list(list(conceptualPathPlot = TRUE, independentCovariances = TRUE,
+                                     inputType = "inputVariables", mediationEffects = TRUE, mediatorCovariances = TRUE,
+                                     modelNumber = 1, modelNumberCovariates = list(), modelNumberIndependent = "",
+                                     modelNumberMediators = list(), modelNumberModeratorW = "",
+                                     modelNumberModeratorZ = "", name = "Model 1", pathCoefficients = TRUE, intercepts = TRUE,
+                                     processRelationships = list(list(processDependent = "contNormal",
+                                                                      processIndependent = "contGamma", processType = "mediators",
+                                                                      processVariable = "debCollin1"), list(processDependent = "contcor1",
+                                                                                                            processIndependent = "facGender", processType = "mediators",
+                                                                                                            processVariable = "debCollin1"), list(processDependent = "debMiss1",
+                                                                                                                                                  processIndependent = "contGamma", processType = "mediators",
+                                                                                                                                                  processVariable = "debCollin1")), residualCovariances = TRUE,
+                                     statisticalPathPlot = TRUE, totalEffects = TRUE, localTests = FALSE,
+                                     localTestType = "cis.loess", localTestBootstrap = FALSE, localTestBootstrapSamples = 1000))
+  set.seed(1)
+  results <- jaspTools::runAnalysis("ClassicProcess", "debug", options)
+  
+  table <- results[["results"]][["parEstContainer"]][["collection"]][["parEstContainer_Model 1"]][["collection"]][["parEstContainer_Model 1_pathCoefficientsTable"]][["data"]]
+  jaspTools::expect_equal_tables(table,
+                                 list(-1.81842415998067, 1.75850994333305, -0.0299571083238086, "(Intercept)",
+                                      "<unicode>", 0.973810386382783, "contNormal", 0.91249995702169,
+                                      -0.0328297092983825, 0.653479549943803, 0.712058021425658, 0.68276878568473,
+                                      "(Intercept)", "<unicode>", 0, "debCollin1", 0.0149437622180597,
+                                      45.6892163915453, -4.9479870283803, 83.8830280464201, 39.4675205090199,
+                                      "(Intercept)", "<unicode>", 0.0815750282662664, "debMiss1",
+                                      22.66138964172, 1.74161960643224, -1.53702416025488, 1.76773422033608,
+                                      0.115355030040601, "(Intercept)", "<unicode>", 0.891166767987515,
+                                      "contcor1", 0.843066098831018, 0.136827978494866, 1.7137813220542,
+                                      2.31240655389555, 2.01309393797488, "(Intercept)", "<unicode>",
+                                      0, "contGamma", 0.15271332447005, 13.1821761130587, 0.406563633033025,
+                                      0.603537375908213, 0.505050504470619, "(Intercept)", "<unicode>",
+                                      0, "facGenderm", 0.0502493271378688, 10.0508908922286, -0.165995350051199,
+                                      0.106498401702712, -0.0297484741742436, "contGamma", "<unicode>",
+                                      0.668692399817187, "contNormal", 0.0695149895363656, -0.427943302195006,
+                                      -2.73898714357846, 2.42947526958326, -0.154755936997602, "debCollin1",
+                                      "<unicode>", 0.906565370265694, "contNormal", 1.31850953740219,
+                                      -0.117371875293759, -0.0185979214400448, 0.00248650372610035,
+                                      -0.00805570885697224, "contGamma", "<unicode>", 0.134215466465715,
+                                      "debCollin1", 0.00537877872564405, -1.49768363189316, -0.0391876523573127,
+                                      0.0248902735585444, -0.00714868939938416, "facGenderm", "<unicode>",
+                                      0.661881681066528, "debCollin1", 0.0163467100470457, -0.437316706469394,
+                                      -3.99105068626878, 2.81795395174919, -0.586548367259797, "contGamma",
+                                      "<unicode>", 0.735608480658925, "debMiss1", 1.73702289728957,
+                                      -0.337674516654351, -116.26393123917, 12.0332112282069, -52.1153600054816,
+                                      "debCollin1", "<unicode>", 0.111315707132311, "debMiss1", 32.7294642859176,
+                                      -1.59230715022443, -2.35410384171132, 2.52278252053418, 0.0843393394114301,
+                                      "debCollin1", "<unicode>", 0.945952802832767, "contcor1", 1.24412652495499,
+                                      0.067790001836414, -0.596452849320671, 0.17019409854064, -0.213129375390016,
+                                      "facGenderm", "<unicode>", 0.275824268295476, "contcor1", 0.195576794754527,
+                                      -1.08974776714957))
 })
