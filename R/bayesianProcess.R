@@ -22,7 +22,7 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
   # Check if analysis has any variables to read in
   if (options[["dependent"]] == "" || (length(options[["covariates"]]) == 0 && length(options[["factors"]]) == 0)) {
     # create empty summary table
-    # .procModelSummaryTable(jaspResults, options, NULL)
+    .procBayesModelSummaryTable(jaspResults, options, NULL)
     return()
   }
   options$naAction <- "listwise"
@@ -57,7 +57,7 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
   # Create path plots for each model and add to container
   .procPathPlots(pathPlotContainer, options, modelsContainer)
   # Create table with model fit indices (AIC, ...)
-  # .procModelSummaryTable(jaspResults, options, modelsContainer)
+  .procBayesModelSummaryTable(jaspResults, options, modelsContainer)
   # Create container for parameter estimates for each model
   parEstContainer <- .procContainerParameterEstimates(jaspResults, options, modelsContainer)
   # Create tables for parameter estimates
@@ -128,6 +128,71 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
   }
 
   return(fittedModel)
+}
+
+# Output functions ----
+
+.procBayesModelSummaryTable <- function(jaspResults, options, modelsContainer) {
+  if (!is.null(jaspResults[["modelSummaryTable"]])) return()
+
+  modelNumbers <- lapply(options[["processModels"]], function(mod) {
+    graph <- modelsContainer[[mod[["name"]]]][["graph"]]$object
+    if (!igraph::is.igraph(graph)) return(NULL)
+    return(.procRecognizeModelNumber(graph))
+  })
+
+  modelNumberIsValid <- !sapply(modelNumbers, is.null)
+
+  modelNames <- sapply(options[["processModels"]], function(mod) mod[["name"]])
+
+  procResults <- lapply(options[["processModels"]], function(mod) modelsContainer[[mod[["name"]]]][["fittedModel"]]$object)
+
+  # Remove invalid models
+  resultIsValid <- sapply(procResults, function(mod) inherits(mod, "lavaan") && mod@Options[["do.fit"]])
+  procResults <- procResults[resultIsValid]
+
+  tableRowIsValid <- modelNumberIsValid & resultIsValid
+
+  summaryTable <- createJaspTable(title = gettext("Model summary"), rowNames = modelNames[tableRowIsValid])
+  summaryTable$dependOn(c(.procGetDependencies(), "processModels", "naAction"))
+  summaryTable$position <- 1
+
+  ovtWaic <- gettext("WAIC")
+  ovtLoo  <- gettext("LOO")
+
+  summaryTable$addColumnInfo(name = "Model",        title = "",                         type = "string" )
+  summaryTable$addColumnInfo(name = "modelNumber",  title = "Hayes model number",       type = "integer" )
+  summaryTable$addColumnInfo(name = "waicEst",      title = gettext("Estimate"),        type = "number", overtitle = ovtWaic )
+  summaryTable$addColumnInfo(name = "waicSE",       title = gettext("SE"),              type = "number", overtitle = ovtWaic )
+  summaryTable$addColumnInfo(name = "looEst",       title = gettext("Estimate"),        type = "number", overtitle = ovtLoo )
+  summaryTable$addColumnInfo(name = "looSE",        title = gettext("SE"),              type = "number", overtitle = ovtLoo )
+  
+  summaryTable$addColumnInfo(name = "N",            title = gettext("n"),               type = "integer")
+
+  jaspResults[["modelSummaryTable"]] <- summaryTable
+
+  summaryTable[["Model"]]       <- modelNames[tableRowIsValid]
+  summaryTable[["modelNumber"]] <- modelNumbers[tableRowIsValid]
+
+  converged <- sapply(procResults, function(mod) mod@Fit@converged)
+
+  if (length(procResults) == 0) {
+    summaryTable$addFootnote(message = gettext("At least one model is incomplete or no model is specified. Please add at least one model and complete specified models."))
+    return()
+  }
+
+  # Use lavaan::fitMeasures instead
+  looResults <- lapply(procResults, function(mod) loo::loo(mod@external$mcmcout))
+  waicResults <- lapply(procResults, function(mod) loo::waic(loo::extract_log_lik(mod@external$mcmcout)))
+  # df  <- sapply(procResults, lavaan::fitMeasures, fit.measures = "df")
+
+  ### Add footnotes about warnings in WAIC and LOO
+
+  summaryTable[["waicEst"]]  <- sapply(waicResults, function(mod) mod$estimates["waic", "Estimate"])
+  summaryTable[["waicSE"]]  <- sapply(waicResults, function(mod) mod$estimates["waic", "SE"])
+  summaryTable[["looEst"]]  <- sapply(looResults, function(mod) mod$estimates["looic", "Estimate"])
+  summaryTable[["looSE"]]  <- sapply(looResults, function(mod) mod$estimates["looic", "SE"])
+  summaryTable[["N"]]        <- sapply(procResults, lavaan::lavInspect, what = "nobs")
 }
 
 .procBayesParameterEstimateTables <- function(container, options, modelsContainer) {
