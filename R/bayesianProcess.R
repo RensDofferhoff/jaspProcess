@@ -181,15 +181,48 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
     return()
   }
 
+  .procCalcModelCaseLogLik <- function(fittedModel) {
+    # Adapted from blavaan::blavCompare function
+    # See https://github.com/ecmerkle/blavaan/blob/master/R/blav_compare.R
+
+    lavopt <- blavaan::blavInspect(fittedModel, "Options")
+
+    if(lavopt$target == "stan" && blavaan::blavInspect(fittedModel, "meanstructure")){
+      return(loo::extract_log_lik(fittedModel@external$mcmcout))
+    } else if(blavaan::blavInspect(fittedModel, "categorical") && lavopt$test != "none"){
+      return(fittedModel@external$casells)
+    }
+
+    lavopt$estimator <- "ML"
+
+    return(blavaan:::case_lls(fittedModel@external$mcmcout, blavaan:::make_mcmc(fittedModel@external$mcmcout), fittedModel))
+  }
+
+  .procCalcRelEff <- function(fittedModel, logLik) {
+    # Adapted from blavaan::blavCompare function
+    # See https://github.com/ecmerkle/blavaan/blob/master/R/blav_compare.R
+
+    nChains <- blavaan::blavInspect(fittedModel, "n.chains")
+    nIter <- nrow(logLik)/nChains
+    chainId <- rep(1:nChains, each=nIter)
+
+    return(loo::relative_eff(exp(logLik), chain_id = chainId))
+  }
+
   # Use lavaan::fitMeasures instead
-  looResults <- lapply(procResults, function(mod) loo::loo(mod@external$mcmcout))
-  waicResults <- lapply(procResults, function(mod) loo::waic(loo::extract_log_lik(mod@external$mcmcout)))
+  # fitResults <- lapply(procResults, function(mod) lavaan::fitMeasures(mod))
   # df  <- sapply(procResults, lavaan::fitMeasures, fit.measures = "df")
+
+  looResults <- lapply(procResults, function(mod) {
+    logLik <- .procCalcModelCaseLogLik(mod)
+    rEff <- .procCalcRelEff(mod, logLik)
+    return(loo::loo(logLik, r_eff = rEff))
+  })
 
   ### Add footnotes about warnings in WAIC and LOO
 
-  summaryTable[["waicEst"]]  <- sapply(waicResults, function(mod) mod$estimates["waic", "Estimate"])
-  summaryTable[["waicSE"]]  <- sapply(waicResults, function(mod) mod$estimates["waic", "SE"])
+  # summaryTable[["waicEst"]]  <- sapply(waicResults, function(mod) mod$estimates["waic", "Estimate"])
+  # summaryTable[["waicSE"]]  <- sapply(waicResults, function(mod) mod$estimates["waic", "SE"])
   summaryTable[["looEst"]]  <- sapply(looResults, function(mod) mod$estimates["looic", "Estimate"])
   summaryTable[["looSE"]]  <- sapply(looResults, function(mod) mod$estimates["looic", "SE"])
   summaryTable[["N"]]        <- sapply(procResults, lavaan::lavInspect, what = "nobs")
