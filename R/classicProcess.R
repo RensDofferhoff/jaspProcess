@@ -26,7 +26,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
     return()
   }
   # Read dataset
-  dataset <- .procReadData(options)
+  dataset <- .procStandardizeData(.procReadData(options), options)
   # Check for errors in dataset
   .procErrorHandling(dataset, options)
   # Create a container for each model
@@ -77,7 +77,10 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
 .procGetDependencies <- function() {
   return(c(
     "dependent", "covariates", "factors", "naAction", "emulation", "estimator",
-    "standardizedEstimates", "errorCalculationMethod", "bootstrapCiType"
+    "standardizedEstimates", "errorCalculationMethod", "bootstrapCiType",
+    "mcmcBurnin", "mcmcSamples", "mcmcChains", "nuPriorMu",
+    "nuPriorSigma", "betaPriorMu", "betaPriorSigma", "psiPriorAlpha",
+    "psiPriorBeta", "rhoPriorAlpha", "rhoPriorBeta"
   ))
 }
 
@@ -443,6 +446,10 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
     columns.as.factor = options[['factors']]
   )
 
+  return(dataset)
+}
+
+.procStandardizeData <- function(data, options) {
   # Standardize variables to get standardized estimates
   if (options$standardizedEstimates != "unstandardized") {
     # Only use complete cases for standardization with listwise deletion
@@ -457,8 +464,6 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
       dataset[[v]][isComplete] <- scale(dataset[[v]][isComplete], center = TRUE, scale = options$standardizedEstimates == "standardized")
     }
   }
-
-  return(dataset)
 }
 
 .procAddFactorDummyIntVars <- function(jaspResults, dataset, options) {

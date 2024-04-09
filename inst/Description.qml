@@ -21,7 +21,7 @@ Description
 	}
 	Analysis
 	{
-		title	:	qsTr("Baysian Process Model")
+		title	:	qsTr("Bayesian Process Model")
 		func	:	"BayesianProcess"
 		qml		:	"BayesianProcess.qml"
 	}

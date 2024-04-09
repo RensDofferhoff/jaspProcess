@@ -179,6 +179,11 @@ Form
 		{
 			CheckBox 
 			{
+				label: qsTr("Prior distributions")
+				name: "priorDistributions"
+			}
+			CheckBox 
+			{
 				label: qsTr("Parameter labels")
 				name: "parameterLabels"
 			}
@@ -188,8 +193,6 @@ Form
 				name: "syntax"
 			}
 		}
-
-		Common.StandardizedEstimates {}
 
 		CIField 
 		{
@@ -349,6 +352,122 @@ Form
                     label: 		qsTr("Statistical")
                 }
             }
+		}
+
+		Group
+		{
+			title: qsTr("Prior distributions")
+
+			columns: 1
+
+			Group
+			{
+				columns: 4
+
+				Label
+				{
+					text: qsTr("Intercepts:")
+				}
+				Label
+				{
+					text: qsTr("v ~ Normal(μ,σ)")
+				}
+				FormulaField
+				{
+					name: "nuPriorMu"
+					label: "μ"
+					value: "0"
+					fieldWidth: 40 * preferencesModel.uiScale
+				}
+				FormulaField
+				{
+					name: "nuPriorSigma"
+					label: "σ"
+					value: "32"
+					min: 0
+					inclusive: JASP.None
+					fieldWidth: 40 * preferencesModel.uiScale
+				}
+				
+				Label
+				{
+					text: qsTr("Path coefficients:")
+				}
+				Label
+				{
+					text: qsTr("β ~ Normal(μ,σ)")
+				}
+				FormulaField
+				{
+					name: "betaPriorMu"
+					label: "μ"
+					value: "0"
+					fieldWidth: 40 * preferencesModel.uiScale
+				}
+				FormulaField
+				{
+					name: "betaPriorSigma"
+					label: "σ"
+					value: "10"
+					min: 0
+					inclusive: JASP.None
+					fieldWidth: 40 * preferencesModel.uiScale
+				}
+
+				Label
+				{
+					text: qsTr("Standard deviations:")
+				}
+				Label
+				{
+					text: qsTr("ψ ~ Gamma(α,β)")
+				}
+				FormulaField
+				{
+					name: "psiPriorAlpha"
+					label: "α"
+					value: "1.0"
+					min: 0
+					inclusive: JASP.None
+					fieldWidth: 40 * preferencesModel.uiScale
+				}
+				FormulaField
+				{
+					name: "psiPriorBeta"
+					label: "β"
+					value: "0.5"
+					min: 0
+					inclusive: JASP.None
+					fieldWidth: 40 * preferencesModel.uiScale
+				}
+
+				Label
+				{
+					text: qsTr("Correlations:")
+				}
+				Label
+				{
+					text: qsTr("ρ ~ Beta(α,β)")
+				}
+				FormulaField
+				{
+					name: "rhoPriorAlpha"
+					label: "α"
+					value: "1"
+					min: 0
+					inclusive: JASP.None
+					fieldWidth: 40 * preferencesModel.uiScale
+				}
+				FormulaField
+				{
+					name: "rhoPriorBeta"
+					label: "β"
+					value: "1"
+					min: 0
+					inclusive: JASP.None
+					fieldWidth: 40 * preferencesModel.uiScale
+				}
+			}
 		}
 
 		Common.ModerationProbes {}

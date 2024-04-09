@@ -97,6 +97,14 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
   return(modelsContainer)
 }
 
+.procBayesGetPriors <- function(options) {
+  nuPrior   <- sprintf("normal(%s,%s)", options$nuPriorMu, options$nuPriorSigma)
+  betaPrior <- sprintf("normal(%s,%s)", options$betaPriorMu, options$betaPriorSigma)
+  psiPrior  <- sprintf("gamma(%s,%s)[sd]", options$psiPriorAlpha, options$psiPriorBeta)
+  rhoPrior  <- sprintf("beta(%s,%s)[sd]", options$rhoPriorAlpha, options$rhoPriorBeta)
+  return(blavaan::dpriors(nu = nuPrior, beta = betaPrior, psi = psiPrior, rho = rhoPrior))
+}
+
 .procBayesResultsFitModel <- function(container, dataset, options) {
   # Should model be fitted?
   doFit <- .procCheckFitModel(container[["graph"]]$object)
@@ -115,7 +123,8 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
     burnin          = options$mcmcBurnin,
     sample          = options$mcmcSamples,
     do.fit          = doFit,
-    target          = "stan"
+    target          = "stan",
+    dp              = .procBayesGetPriors(options)
   ))
 
   if (jaspBase::isTryError(fittedModel)) {
@@ -131,6 +140,35 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
 }
 
 # Output functions ----
+
+.procBayesCalcModelCaseLogLik <- function(fittedModel) {
+  # Adapted from blavaan::blavCompare function
+  # See https://github.com/ecmerkle/blavaan/blob/master/R/blav_compare.R
+
+  lavopt <- blavaan::blavInspect(fittedModel, "Options")
+
+  if(lavopt$target == "stan" && blavaan::blavInspect(fittedModel, "meanstructure")){
+    return(loo::extract_log_lik(fittedModel@external$mcmcout))
+  } else if(blavaan::blavInspect(fittedModel, "categorical") && lavopt$test != "none"){
+    return(fittedModel@external$casells)
+  }
+
+  lavopt$estimator <- "ML"
+
+  # Model comparison only works using these internal blavaan functions; however, they might change in the future
+  return(blavaan:::case_lls(fittedModel@external$mcmcout, blavaan:::make_mcmc(fittedModel@external$mcmcout), fittedModel))
+}
+
+.procBayesCalcRelEff <- function(fittedModel, logLik) {
+  # Adapted from blavaan::blavCompare function
+  # See https://github.com/ecmerkle/blavaan/blob/master/R/blav_compare.R
+
+  nChains <- blavaan::blavInspect(fittedModel, "n.chains")
+  nIter <- nrow(logLik)/nChains
+  chainId <- rep(1:nChains, each=nIter)
+
+  return(loo::relative_eff(exp(logLik), chain_id = chainId))
+}
 
 .procBayesModelSummaryTable <- function(jaspResults, options, modelsContainer) {
   if (!is.null(jaspResults[["modelSummaryTable"]])) return()
@@ -158,74 +196,85 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
   summaryTable$position <- 1
 
   ovtWaic <- gettext("WAIC")
-  ovtLoo  <- gettext("LOO")
+  ovtLoo  <- gettext("LOOIC")
 
-  summaryTable$addColumnInfo(name = "Model",        title = "",                         type = "string" )
-  summaryTable$addColumnInfo(name = "modelNumber",  title = "Hayes model number",       type = "integer" )
-  summaryTable$addColumnInfo(name = "waicEst",      title = gettext("Estimate"),        type = "number", overtitle = ovtWaic )
-  summaryTable$addColumnInfo(name = "waicSE",       title = gettext("SE"),              type = "number", overtitle = ovtWaic )
-  summaryTable$addColumnInfo(name = "looEst",       title = gettext("Estimate"),        type = "number", overtitle = ovtLoo )
-  summaryTable$addColumnInfo(name = "looSE",        title = gettext("SE"),              type = "number", overtitle = ovtLoo )
-  
-  summaryTable$addColumnInfo(name = "N",            title = gettext("n"),               type = "integer")
+  summaryTable$addColumnInfo(name = "Model",        title = "",                         type = "string")
+  summaryTable$addColumnInfo(name = "modelNumber",  title = "Hayes model number",       type = "integer")
+  summaryTable$addColumnInfo(name = "ppp",          title = gettext("PPP"),             type = "number")
+  summaryTable$addColumnInfo(name = "waicEst",      title = gettext("Estimate"),        type = "number", overtitle = ovtWaic)
+  summaryTable$addColumnInfo(name = "waicSE",       title = gettext("SE"),              type = "number", overtitle = ovtWaic)
+  summaryTable$addColumnInfo(name = "looEst",       title = gettext("Estimate"),        type = "number", overtitle = ovtLoo)
+  summaryTable$addColumnInfo(name = "looSE",        title = gettext("SE"),              type = "number", overtitle = ovtLoo)
 
   jaspResults[["modelSummaryTable"]] <- summaryTable
 
   summaryTable[["Model"]]       <- modelNames[tableRowIsValid]
   summaryTable[["modelNumber"]] <- modelNumbers[tableRowIsValid]
 
-  converged <- sapply(procResults, function(mod) mod@Fit@converged)
+  summaryTable[["ppp"]] <- sapply(procResults, function(mod) mod@test[[2]]$stat)
 
   if (length(procResults) == 0) {
     summaryTable$addFootnote(message = gettext("At least one model is incomplete or no model is specified. Please add at least one model and complete specified models."))
     return()
   }
 
-  .procCalcModelCaseLogLik <- function(fittedModel) {
-    # Adapted from blavaan::blavCompare function
-    # See https://github.com/ecmerkle/blavaan/blob/master/R/blav_compare.R
+  logLikResults <- lapply(procResults, .procBayesCalcModelCaseLogLik)
 
-    lavopt <- blavaan::blavInspect(fittedModel, "Options")
+  looResults <- mapply(function(mod, ll) {
+    rEff <- .procBayesCalcRelEff(mod, ll)
+    return(loo::loo(ll, r_eff = rEff))
+  }, mod = procResults, ll = logLikResults, SIMPLIFY = FALSE)
 
-    if(lavopt$target == "stan" && blavaan::blavInspect(fittedModel, "meanstructure")){
-      return(loo::extract_log_lik(fittedModel@external$mcmcout))
-    } else if(blavaan::blavInspect(fittedModel, "categorical") && lavopt$test != "none"){
-      return(fittedModel@external$casells)
-    }
+  names(looResults) <- modelNames[tableRowIsValid]
 
-    lavopt$estimator <- "ML"
+  waicResults <- lapply(logLikResults, loo::waic)
 
-    return(blavaan:::case_lls(fittedModel@external$mcmcout, blavaan:::make_mcmc(fittedModel@external$mcmcout), fittedModel))
+  if (length(looResults) > 1) {
+    ovtDiff <- gettext("LOO Difference")
+
+    summaryTable$addColumnInfo(name = "elpdDiff", title = gettext("ELPD"), type = "number", overtitle = ovtDiff)
+    summaryTable$addColumnInfo(name = "seDiff", title = gettext("SE"), type = "number", overtitle = ovtDiff)
+    summaryTable$addColumnInfo(name = "ratioDiff", title = gettext("Ratio"), type = "number", overtitle = ovtDiff)
+
+    looCompare <- loo::loo_compare(looResults)
+
+    elpdDiff <- looCompare[match(names(looResults), row.names(looCompare)), "elpd_diff"]
+    seDiff <- looCompare[match(names(looResults), row.names(looCompare)), "se_diff"]
+    ratioDiff <- abs(elpdDiff / seDiff)
+    ratioDiff[!is.finite(ratioDiff)] <- NA
+
+    summaryTable[["elpdDiff"]] <- elpdDiff
+    summaryTable[["seDiff"]] <- seDiff
+    summaryTable[["ratioDiff"]] <- ratioDiff
   }
 
-  .procCalcRelEff <- function(fittedModel, logLik) {
-    # Adapted from blavaan::blavCompare function
-    # See https://github.com/ecmerkle/blavaan/blob/master/R/blav_compare.R
+  isBadWaic <- sapply(waicResults, function(mod) sum(mod$pointwise[, 2] > 0.4))
+  isBadLoo <- sapply(looResults, function(mod) length(loo::pareto_k_ids(mod, threshold = 0.7)))
 
-    nChains <- blavaan::blavInspect(fittedModel, "n.chains")
-    nIter <- nrow(logLik)/nChains
-    chainId <- rep(1:nChains, each=nIter)
-
-    return(loo::relative_eff(exp(logLik), chain_id = chainId))
+  if (any(isBadWaic)) {
+    summaryTable$addFootnote(
+      message = gettext("Warning: WAIC estimate unreliable -- at least one effective parameter estimate (p_waic) larger than 0.4. We recommend using LOO instead."),
+      colNames = "waicEst",
+      rowNames = names(looResults)[isBadWaic]
+    )
   }
 
-  # Use lavaan::fitMeasures instead
-  # fitResults <- lapply(procResults, function(mod) lavaan::fitMeasures(mod))
-  # df  <- sapply(procResults, lavaan::fitMeasures, fit.measures = "df")
+  if (any(isBadLoo)) {
+    summaryTable$addFootnote(
+      message = gettext("Warning: LOO estimate unreliable -- at least one observation with shape parameter (k) of the generalized Pareto distribution higher than 0.5."),
+      colNames = "looEst",
+      rowNames = names(looResults)[isBadLoo]
+    )
+  }
 
-  looResults <- lapply(procResults, function(mod) {
-    logLik <- .procCalcModelCaseLogLik(mod)
-    rEff <- .procCalcRelEff(mod, logLik)
-    return(loo::loo(logLik, r_eff = rEff))
-  })
+  summaryTable[["waicEst"]] <- sapply(waicResults, function(mod) mod$estimates["waic", "Estimate"])
+  summaryTable[["waicSE"]] <- sapply(waicResults, function(mod) mod$estimates["waic", "SE"])
+  summaryTable[["looEst"]] <- sapply(looResults, function(mod) mod$estimates["looic", "Estimate"])
+  summaryTable[["looSE"]] <- sapply(looResults, function(mod) mod$estimates["looic", "SE"])
 
-  ### Add footnotes about warnings in WAIC and LOO
+  summaryTable$addColumnInfo(name = "N", title = gettext("n"), type = "integer")
 
-  # summaryTable[["waicEst"]]  <- sapply(waicResults, function(mod) mod$estimates["waic", "Estimate"])
-  # summaryTable[["waicSE"]]  <- sapply(waicResults, function(mod) mod$estimates["waic", "SE"])
-  summaryTable[["looEst"]]  <- sapply(looResults, function(mod) mod$estimates["looic", "Estimate"])
-  summaryTable[["looSE"]]  <- sapply(looResults, function(mod) mod$estimates["looic", "SE"])
-  summaryTable[["N"]]        <- sapply(procResults, lavaan::lavInspect, what = "nobs")
+  summaryTable[["N"]] <- sapply(procResults, lavaan::lavInspect, what = "nobs")
 }
 
 .procBayesParameterEstimateTables <- function(container, options, modelsContainer) {
@@ -261,37 +310,27 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
   }
 }
 
-.procBayesCoefficientsTable <- function(tbl, options, coefs) {
+.procBayesCoefficientsTable <- function(tbl, options, parStats) {
   titlePosterior <- gettext("Posterior")
   titleCI <- gettextf("%s%% Credible Interval", options$ciLevel * 100)
 
-  tbl$addColumnInfo(name = "mean",     title = gettext("Estimate"),   type = "number", format = "sf:4;dp:3", overtitle = titlePosterior)
-  tbl$addColumnInfo(name = "median",   title = gettext("Median"),     type = "number", format = "sf:4;dp:3", overtitle = titlePosterior)
-  tbl$addColumnInfo(name = "sd",       title = gettext("SD"), type = "number", format = "sf:4;dp:3", overtitle = titlePosterior)
-  tbl$addColumnInfo(name = "ci.lower", title = gettext("Lower"),      type = "number", format = "sf:4;dp:3",
-                    overtitle = titleCI)
-  tbl$addColumnInfo(name = "ci.upper", title = gettext("Upper"),      type = "number", format = "sf:4;dp:3",
-                    overtitle = titleCI)
-  tbl$addColumnInfo(name = "rhat", title = gettext("R-hat"), type = "number")
-  tbl$addColumnInfo(name = "bulkEss", title = gettext("ESS (bulk)"), type = "integer")
-  tbl$addColumnInfo(name = "tailEss", title = gettext("ESS (tail)"), type = "integer")
+  tbl$addColumnInfo(name = "mean",      title = gettext("Mean"),        type = "number", format = "sf:4;dp:3", overtitle = titlePosterior)
+  tbl$addColumnInfo(name = "median",    title = gettext("Median"),      type = "number", format = "sf:4;dp:3", overtitle = titlePosterior)
+  tbl$addColumnInfo(name = "sd",        title = gettext("SD"),          type = "number", format = "sf:4;dp:3", overtitle = titlePosterior)
+  tbl$addColumnInfo(name = "ci.lower",  title = gettext("Lower"),       type = "number", format = "sf:4;dp:3", overtitle = titleCI)
+  tbl$addColumnInfo(name = "ci.upper",  title = gettext("Upper"),       type = "number", format = "sf:4;dp:3", overtitle = titleCI)
+  tbl$addColumnInfo(name = "rhat",      title = gettext("R-hat"),       type = "number" )
+  tbl$addColumnInfo(name = "bulkEss",   title = gettext("ESS (bulk)"),  type = "integer")
+  tbl$addColumnInfo(name = "tailEss",   title = gettext("ESS (tail)"),  type = "integer")
 
-  tbl[["mean"]]      <- coefs$mean
-  tbl[["median"]]   <- coefs$median
-  tbl[["sd"]]       <- coefs$sd
-  tbl[["ci.lower"]] <- coefs$ci.lower
-  tbl[["ci.upper"]] <- coefs$ci.upper
-  tbl[["rhat"]]     <- coefs$Rhat
-  tbl[["bulkEss"]]  <- coefs$Bulk_ESS
-  tbl[["tailEss"]]  <- coefs$Tail_ESS
-
-  if (options$standardizedEstimates != "unstandardized") {
-    txt <- switch(options$standardizedEstimates,
-      centered = gettext("mean-centered"),
-      standardized = gettext("standardized")
-    )
-    tbl$addFootnote(gettextf("Summary statistics are based on %s estimates.", txt))
-  }
+  tbl[["mean"]]     <- parStats$mean
+  tbl[["median"]]   <- parStats$median
+  tbl[["sd"]]       <- parStats$sd
+  tbl[["ci.lower"]] <- parStats$ci.lower
+  tbl[["ci.upper"]] <- parStats$ci.upper
+  tbl[["rhat"]]     <- parStats$Rhat
+  tbl[["bulkEss"]]  <- parStats$Bulk_ESS
+  tbl[["tailEss"]]  <- parStats$Tail_ESS
 }
 
 .procBayesGetParStats <- function(stanFit, parTable, options) {
@@ -312,10 +351,54 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
       warmup = 0
     )
   )[, c("mean", "50%", "sd", ciNames, "Rhat", "Bulk_ESS", "Tail_ESS")]
-  
+
   names(parStats) <- c("mean", "median", "sd", "ci.lower", "ci.upper", "Rhat", "Bulk_ESS", "Tail_ESS")
 
-  return(parStats)
+  # Add prior dist to output
+  return(cbind(parStats, prior = parTable$prior))
+}
+
+.procBayesModelFitChecks <- function(tbl, stanFit, parStats) {
+  divIterations <- rstan::get_num_divergent(stanFit)
+  lowBmfi       <- rstan::get_low_bfmi_chains(stanFit)
+  maxTreedepth  <- rstan::get_num_max_treedepth(stanFit)
+  minBulkESS    <- min(parStats[, "Bulk_ESS"])
+  minTailESS    <- min(parStats[, "Tail_ESS"])
+
+  if (any(is.infinite(parStats[, "Rhat"])))
+    maxRhat     <- Inf
+  else
+    maxRhat     <- max(parStats[, "Rhat"])
+
+  symbol <- gettext("Warning:")
+
+  if (divIterations > 0) {
+    tbl$addFootnote(message = gettextf("Estimates might be biased -- %i divergent transitions after warmup.", divIterations), symbol = symbol)
+  }
+
+  if (length(lowBmfi) > 0) {
+    tbl$addFootnote(message = gettextf("Bayesian Fraction of Missing Information (BFMI) was too low in %i chains -- the posterior distribution was not explored efficiently.", lowBmfi), symbol = symbol)
+  }
+
+  if (maxTreedepth > 0) {
+    tbl$addFootnote(message = gettextf("The Hamiltonian Monte Carlo procedure might be inefficient -- %i transition exceeded the maximum tree depth.", maxTreedepth), symbol = symbol)
+  }
+
+  essThreshold <- 100 * stanFit@sim$chains
+
+  if (minBulkESS < essThreshold || !is.finite(minBulkESS)) {
+    tbl$addFootnote(message = gettextf("Low estimation accuracy for bulk quantities -- the smallest Effective Sample Size (ESS) is %.2f < %1.0f.", minBulkESS, essThreshold), symbol = symbol)
+  }
+
+  if (minTailESS < essThreshold || !is.finite(minBulkESS)) {
+    tbl$addFootnote(message = gettextf("Low estimation accuracy for tail quantities -- the smallest Effective Sample Size (ESS) is %.2f < %1.0f.", minTailESS, essThreshold), symbol = symbol)
+  }
+
+  rhatTreshold <- 1.05
+
+  if (maxRhat > rhatTreshold) {
+    tbl$addFootnote(message = gettextf("Inference possibly unreliable -- MCMC chains might not have converged; the largest R-hat is %.3f > %.2f", maxRhat, rhatTreshold), symbol = symbol)
+  }
 }
 
 .procBayesPathCoefficientsTable <- function(container, options, procResults, modelIdx) {
@@ -323,7 +406,7 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
 
   pathCoefTable <- createJaspTable(title = gettext("Path coefficients"))
   pathCoefTable$dependOn(
-    options = "parameterLabels",
+    options = c("priorDistributions", "parameterLabels"),
     nestedOptions = list(c("processModels", as.character(modelIdx), "pathCoefficients"))
   )
   container[["pathCoefficientsTable"]] <- pathCoefTable
@@ -349,6 +432,13 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
   }
 
   .procBayesCoefficientsTable(pathCoefTable, options, parStats)
+  .procBayesModelFitChecks(pathCoefTable, procResults@external$mcmcout, parStats)
+
+  if (options$priorDistributions) {
+    # Prior only for coefficients
+    pathCoefTable$addColumnInfo(name = "priorDist", title = gettext("Prior"), type = "string")
+    pathCoefTable[["priorDist"]] <- stringr::str_to_sentence(parStats$prior)
+  }
 }
 
 .procBayesAddMedSamples <- function(stanFit, parTable) {
@@ -441,6 +531,7 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
   }
 
   .procBayesCoefficientsTable(medEffectsTable, options, parStats)
+  .procBayesModelFitChecks(medEffectsTable, procResults@external$mcmcout, parStats)
 }
 
 .procBayesMcmcPlots <- function(container, options, modelsContainer) {
