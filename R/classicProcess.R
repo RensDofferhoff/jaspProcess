@@ -78,7 +78,7 @@ ClassicProcess <- function(jaspResults, dataset = NULL, options) {
   return(c(
     "dependent", "covariates", "factors", "naAction", "emulation", "estimator",
     "standardizedEstimates", "errorCalculationMethod", "bootstrapCiType",
-    "mcmcBurnin", "mcmcSamples", "mcmcChains", "nuPriorMu",
+    "mcmcBurnin", "mcmcSamples", "mcmcChains", "seed", "setSeed", "nuPriorMu",
     "nuPriorSigma", "betaPriorMu", "betaPriorSigma", "psiPriorAlpha",
     "psiPriorBeta", "rhoPriorAlpha", "rhoPriorBeta"
   ))

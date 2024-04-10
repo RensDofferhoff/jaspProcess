@@ -124,7 +124,8 @@ BayesianProcess <- function(jaspResults, dataset = NULL, options) {
     sample          = options$mcmcSamples,
     do.fit          = doFit,
     target          = "stan",
-    dp              = .procBayesGetPriors(options)
+    dp              = .procBayesGetPriors(options),
+    seed            = .getSeedJASP(options)
   ))
 
   if (jaspBase::isTryError(fittedModel)) {

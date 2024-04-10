@@ -248,8 +248,27 @@ Form
 		}
     }
 
-    Common.PlotOptions {}
+	Section
+	{
+		title: qsTr("Plots")
+		columns: 1
 
+		CheckBox
+		{
+			name: 		"useColorPalette"
+			label: 		qsTr("Color palette")
+			checked: 	true
+			childrenOnSameRow: true
+
+			ColorPalette
+			{
+				name: "colorPalette"
+				label: ""
+			}
+		}
+
+		Common.PathPlots {}
+	}
 	Section 
     {
         id: advanced
